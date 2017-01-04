@@ -25,8 +25,8 @@ public class Chats extends Fragment implements View.OnClickListener {
     private EditText msg_edittext;
     private String user1 = "vijay", user2;// chating with self
     private Random random;
-    public static ArrayList<ChatMessage> chatlist;
-    public static ChatAdapter chatAdapter;
+    public static ArrayList<ChatMessage> chatlist = new ArrayList<>();
+    public static ChatAdapter chatAdapter = new ChatAdapter(chatlist);
     RecyclerView msgListView;
 
     public static String PARAM_USER = "user_name";

@@ -27,6 +27,8 @@ import org.jivesoftware.smack.provider.EmbeddedExtensionProvider;
 import org.jivesoftware.smack.provider.ProviderManager;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
+import org.jivesoftware.smackx.chatstates.ChatState;
+import org.jivesoftware.smackx.chatstates.ChatStateListener;
 import org.jivesoftware.smackx.pubsub.provider.SubscriptionProvider;
 import org.jivesoftware.smackx.receipts.DeliveryReceiptManager;
 import org.jivesoftware.smackx.receipts.DeliveryReceiptRequest;
@@ -207,6 +209,7 @@ public class MyXMPP {
         @Override
         public void onReceiptReceived(String fromJid, String toJid, String receiptId, Stanza receipt) {
             Log.i(TAG, "Read receipt from:" + fromJid + " & to:" + toJid + " &receiptId:" + receiptId + " &receipt:" + receipt);
+            Log.i(TAG, "Message Read Successfully");
         }
     }
 
@@ -224,8 +227,6 @@ public class MyXMPP {
         message.setType(Message.Type.chat);
         try {
             DeliveryReceiptRequest.addTo(message);
-            ReadReceipt read = new ReadReceipt(chatMessage.msgId);
-            message.addExtension(read);
             chat.sendMessage(message);
             Log.i(TAG, "Chat message sent.");
         } catch (SmackException.NotConnectedException e) {
@@ -309,7 +310,7 @@ public class MyXMPP {
         }
     }
 
-    private class MMessageListener implements ChatMessageListener {
+    private class MMessageListener implements ChatMessageListener, ChatStateListener {
 
         MMessageListener(Context contxt) {
         }
@@ -319,13 +320,21 @@ public class MyXMPP {
         public void processMessage(final org.jivesoftware.smack.chat.Chat chat,
                                    final Message message) {
             Log.e("MyXMPP_MESSAGE_LISTENER", "Xmpp message received: '"
-                    + message.toString());
+                    + message.toString() + " & message.getFrom() :" + message.getFrom());
+
+            Message messageReceipt = new Message(message.getFrom());
+            ReadReceipt read = new ReadReceipt(message.getStanzaId());
+            messageReceipt.addExtension(read);
+            try {
+                connection.sendStanza(messageReceipt);
+            } catch (SmackException.NotConnectedException e) {
+                e.printStackTrace();
+            }
 
             if (message.getType() == Message.Type.chat
                     && message.getBody() != null) {
                 final ChatMessage chatMessage = gson.fromJson(
                         message.getBody(), ChatMessage.class);
-
                 processMessage(chatMessage);
             }
         }
@@ -340,6 +349,27 @@ public class MyXMPP {
                     Chats.chatAdapter.notifyDataSetChanged();
                 }
             });
+        }
+
+        @Override
+        public void stateChanged(Chat chat, ChatState state) {
+            switch (state) {
+                case active:
+                    Log.i("state", "active");
+                    break;
+                case composing:
+                    Log.i("state", "composing");
+                    break;
+                case paused:
+                    Log.i("state", "paused");
+                    break;
+                case inactive:
+                    Log.i("state", "inactive");
+                    break;
+                case gone:
+                    Log.i("state", "gone");
+                    break;
+            }
         }
     }
 
