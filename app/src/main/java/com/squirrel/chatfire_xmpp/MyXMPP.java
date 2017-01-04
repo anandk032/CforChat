@@ -19,9 +19,12 @@ import org.jivesoftware.smack.chat.Chat;
 import org.jivesoftware.smack.chat.ChatManager;
 import org.jivesoftware.smack.chat.ChatManagerListener;
 import org.jivesoftware.smack.chat.ChatMessageListener;
+import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.provider.EmbeddedExtensionProvider;
+import org.jivesoftware.smack.provider.ProviderManager;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
 import org.jivesoftware.smackx.pubsub.provider.SubscriptionProvider;
@@ -31,6 +34,8 @@ import org.jivesoftware.smackx.receipts.ReceiptReceivedListener;
 import org.jivesoftware.smackx.search.UserSearchManager;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Created by Dharmesh on 12/28/2016.
@@ -101,8 +106,14 @@ public class MyXMPP {
         XMPPTCPConnection.setUseStreamManagementResumptiodDefault(true);
         XMPPTCPConnection.setUseStreamManagementDefault(true);
         connection = new XMPPTCPConnection(config.build());
+        connection.setPacketReplyTimeout(12000);
         XMPPConnectionListener connectionListener = new XMPPConnectionListener();
         connection.addConnectionListener(connectionListener);
+        ReadReceiptManager.getInstanceFor(connection);
+        ReadReceiptManager.getInstanceFor(connection).addReadReceivedListener(new ReadReceiptListener());
+
+        //add read receipt provider
+        ProviderManager.addExtensionProvider(ReadReceipt.ELEMENT, ReadReceipt.NAMESPACE, new ReadReceiptProvider());
     }
 
     public String getUserId() {
@@ -110,6 +121,13 @@ public class MyXMPP {
             return connection.getUser();
         }
         return null;
+    }
+
+    public boolean isConnected() {
+        if (connection != null) {
+            return connection.isConnected();
+        }
+        return false;
     }
 
     void disconnect() {
@@ -160,46 +178,6 @@ public class MyXMPP {
         });
     }
 
-//    void connect() {
-//        AsyncTask<Void, Void, Boolean> connectionThread = new AsyncTask<Void, Void, Boolean>() {
-//            @Override
-//            protected synchronized Boolean doInBackground(Void... arg0) {
-//                if (connection.isConnected())
-//                    return false;
-//                isconnecting = true;
-//                //Log.d("Connect() Function", caller + "=>connecting....");
-//
-//                try {
-//                    connection.connect();
-//                    DeliveryReceiptManager dm = DeliveryReceiptManager
-//                            .getInstanceFor(connection);
-//                    dm.setAutoReceiptMode(DeliveryReceiptManager.AutoReceiptMode.always);
-//                    dm.addReceiptReceivedListener(new ReceiptReceivedListener() {
-//
-//                        @Override
-//                        public void onReceiptReceived(final String fromid,
-//                                                      final String toid, final String msgid,
-//                                                      final Stanza packet) {
-//                            Toast.makeText(context, "" + toid, Toast.LENGTH_SHORT).show();
-//
-//                        }
-//                    });
-//                    connected = true;
-//                } catch (IOException e) {
-//                    //Log.e("(" + caller + ")", "IOException: " + e.getMessage());
-//                } catch (SmackException e) {
-////                    Log.e("(" + caller + ")",
-////                            "SMACKException: " + e.getMessage());
-//                } catch (XMPPException e) {
-////                    Log.e("connect(" + caller + ")",
-////                            "XMPPException: " + e.getMessage());
-//                }
-//                return isconnecting = false;
-//            }
-//        };
-//        connectionThread.execute();
-//    }
-
     private boolean login() {
         try {
             connection.login(loginUser, passwordUser);
@@ -223,6 +201,15 @@ public class MyXMPP {
         }
     }
 
+    private class ReadReceiptListener implements ReceiptReceivedListener {
+        private static final String TAG = "ReadReceiptListener";
+
+        @Override
+        public void onReceiptReceived(String fromJid, String toJid, String receiptId, Stanza receipt) {
+            Log.i(TAG, "Read receipt from:" + fromJid + " & to:" + toJid + " &receiptId:" + receiptId + " &receipt:" + receipt);
+        }
+    }
+
     void sendMessage(ChatMessage chatMessage) {
         String body = gson.toJson(chatMessage);
 
@@ -237,6 +224,8 @@ public class MyXMPP {
         message.setType(Message.Type.chat);
         try {
             DeliveryReceiptRequest.addTo(message);
+            ReadReceipt read = new ReadReceipt(chatMessage.msgId);
+            message.addExtension(read);
             chat.sendMessage(message);
             Log.i(TAG, "Chat message sent.");
         } catch (SmackException.NotConnectedException e) {
@@ -245,7 +234,6 @@ public class MyXMPP {
             Log.e("xmpp.SendMessage()", "-Exception" +
                     "msg Not sent!" + e.getMessage());
         }
-
     }
 
     private class XMPPConnectionListener implements ConnectionListener {
@@ -343,7 +331,6 @@ public class MyXMPP {
         }
 
         private void processMessage(final ChatMessage chatMessage) {
-
             chatMessage.isMine = false;
             Chats.chatlist.add(chatMessage);
             new Handler(Looper.getMainLooper()).post(new Runnable() {
@@ -351,17 +338,14 @@ public class MyXMPP {
                 @Override
                 public void run() {
                     Chats.chatAdapter.notifyDataSetChanged();
-
                 }
             });
         }
-
     }
 
     public void getSub() {
         UserSearchManager userSearchManager = new UserSearchManager(connection);
         SubscriptionProvider subscriptionProvider = new SubscriptionProvider();
-
     }
 
     void precence() {
@@ -379,6 +363,43 @@ public class MyXMPP {
             public void processPacket(Stanza packet) throws SmackException.NotConnectedException {
             }
         });
+    }
+
+    public class ReadReceipt implements ExtensionElement {
+        public static final String NAMESPACE = "urn:xmpp:read";
+        public static final String ELEMENT = "read";
+
+        private String id; /// original ID of the delivered message
+
+        public ReadReceipt(String id) {
+            this.id = id;
+        }
+
+        public String getId() {
+            return id;
+        }
+
+        @Override
+        public String getElementName() {
+            return ELEMENT;
+        }
+
+        @Override
+        public String getNamespace() {
+            return NAMESPACE;
+        }
+
+        @Override
+        public String toXML() {
+            return "<read xmlns='" + NAMESPACE + "' id='" + id + "'/>";
+        }
+    }
+
+    public class ReadReceiptProvider extends EmbeddedExtensionProvider {
+        @Override
+        protected ExtensionElement createReturnExtension(String currentElement, String currentNamespace, Map attributeMap, List content) {
+            return new ReadReceipt((String) attributeMap.get("id"));
+        }
     }
 
 //    public void getUser() {
