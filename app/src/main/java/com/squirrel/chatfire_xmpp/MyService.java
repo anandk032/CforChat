@@ -97,6 +97,10 @@ public class MyService extends Service {
         String user = prefs.getString(USERNAME, "");
         String pass = prefs.getString(PASSWORD, "");
 
+        if (xmpp != null && xmpp.isConnected()) {
+            return;
+        }
+
         xmpp = MyXMPP.getInstance(MyService.this, DOMAIN, user, pass);
         xmpp.connect();
     }
