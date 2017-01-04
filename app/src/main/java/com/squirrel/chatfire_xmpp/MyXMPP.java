@@ -19,31 +19,28 @@ import org.jivesoftware.smack.chat.Chat;
 import org.jivesoftware.smack.chat.ChatManager;
 import org.jivesoftware.smack.chat.ChatManagerListener;
 import org.jivesoftware.smack.chat.ChatMessageListener;
-import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.packet.Stanza;
-import org.jivesoftware.smack.provider.EmbeddedExtensionProvider;
 import org.jivesoftware.smack.provider.ProviderManager;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
 import org.jivesoftware.smackx.chatstates.ChatState;
 import org.jivesoftware.smackx.chatstates.ChatStateListener;
 import org.jivesoftware.smackx.pubsub.provider.SubscriptionProvider;
+import org.jivesoftware.smackx.receipts.DeliveryReceipt;
 import org.jivesoftware.smackx.receipts.DeliveryReceiptManager;
 import org.jivesoftware.smackx.receipts.DeliveryReceiptRequest;
 import org.jivesoftware.smackx.receipts.ReceiptReceivedListener;
 import org.jivesoftware.smackx.search.UserSearchManager;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Created by Dharmesh on 12/28/2016.
  */
 
-public class MyXMPP {
+public class MyXMPP implements StanzaListener {
     private static final String TAG = "MyXMPP";
 
     private static boolean connected = false;
@@ -59,7 +56,7 @@ public class MyXMPP {
     private MyService context;
     private static MyXMPP instance = null;
 
-    private org.jivesoftware.smack.chat.Chat Mychat;
+    private Chat Mychat;
 
     private ChatManagerListenerImpl mChatManagerListener;
     private MMessageListener mMessageListener;
@@ -104,18 +101,20 @@ public class MyXMPP {
         config.setServiceName(serverAddress);
         config.setHost(serverAddress);
         config.setPort(5222);
-        config.setDebuggerEnabled(true);
+        config.setDebuggerEnabled(false);
+        config.setResource("Meetwo");
         XMPPTCPConnection.setUseStreamManagementResumptiodDefault(true);
         XMPPTCPConnection.setUseStreamManagementDefault(true);
         connection = new XMPPTCPConnection(config.build());
         connection.setPacketReplyTimeout(12000);
         XMPPConnectionListener connectionListener = new XMPPConnectionListener();
         connection.addConnectionListener(connectionListener);
+        connection.addStanzaAcknowledgedListener(this);
         ReadReceiptManager.getInstanceFor(connection);
         ReadReceiptManager.getInstanceFor(connection).addReadReceivedListener(new ReadReceiptListener());
 
         //add read receipt provider
-        ProviderManager.addExtensionProvider(ReadReceipt.ELEMENT, ReadReceipt.NAMESPACE, new ReadReceiptProvider());
+        ProviderManager.addExtensionProvider(ReadReceiptManager.ReadReceipt.ELEMENT, ReadReceiptManager.ReadReceipt.NAMESPACE, new ReadReceiptManager.ReadReceiptProvider());
     }
 
     public String getUserId() {
@@ -143,7 +142,8 @@ public class MyXMPP {
 
     void connect() {
         try {
-            connection.connect();
+            if (!connection.isConnected())
+                connection.connect();
             if (!login()) return;
 
             ReconnectionManager reconnectionManager = ReconnectionManager.getInstanceFor(connection);
@@ -169,13 +169,13 @@ public class MyXMPP {
 
         DeliveryReceiptManager dm = DeliveryReceiptManager
                 .getInstanceFor(connection);
-        dm.setAutoReceiptMode(DeliveryReceiptManager.AutoReceiptMode.always);
+        //dm.setAutoReceiptMode(DeliveryReceiptManager.AutoReceiptMode.always);
         dm.addReceiptReceivedListener(new ReceiptReceivedListener() {
             @Override
             public void onReceiptReceived(final String fromId,
                                           final String toId, final String msgId,
                                           final Stanza packet) {
-                Log.i(TAG, "DeliveryReceiptManager: delivered, to:" + toId + " & msgId:" + msgId + " & stanzaId:" + packet.getStanzaId());
+                Log.i(TAG, "DeliveryReceiptManager RECEIVED RECEIPT: " + "fromId :" + fromId + " to:" + toId + " & msgId:" + msgId + " & stanzaId:" + packet.getStanzaId());
             }
         });
     }
@@ -194,9 +194,15 @@ public class MyXMPP {
         return false;
     }
 
+    /*Stanza acknowledge listener*/
+    @Override
+    public void processPacket(Stanza packet) throws SmackException.NotConnectedException {
+        Log.i(TAG, "Atanza ACK :" + packet.toXML());
+    }
+
     private class ChatManagerListenerImpl implements ChatManagerListener {
         @Override
-        public void chatCreated(final org.jivesoftware.smack.chat.Chat chat,
+        public void chatCreated(final Chat chat,
                                 final boolean createdLocally) {
             if (!createdLocally)
                 chat.addMessageListener(mMessageListener);
@@ -216,19 +222,20 @@ public class MyXMPP {
     void sendMessage(ChatMessage chatMessage) {
         String body = gson.toJson(chatMessage);
 
-        Chat chat = ChatManager.getInstanceFor(connection).createChat(
-                chatMessage.receiverId + "@"
-                        + context.getString(R.string.server),
-                mMessageListener);
+        String to = chatMessage.receiverId + "@"
+                + context.getString(R.string.server);
+        Chat chat = ChatManager.getInstanceFor(connection).createChat(to, mMessageListener);
 
-        Message message = new Message();
+        final Message message = new Message();
         message.setBody(body);
+        message.setFrom(getUserId());
+        message.setTo(to);
         message.setStanzaId(chatMessage.msgId);
         message.setType(Message.Type.chat);
         try {
             DeliveryReceiptRequest.addTo(message);
             chat.sendMessage(message);
-            Log.i(TAG, "Chat message sent.");
+            Log.i(TAG, "Chat message sent msgId:" + message.getStanzaId());
         } catch (SmackException.NotConnectedException e) {
             Log.e("xmpp.SendMessage()", "msg Not sent!-Not Connected!");
         } catch (Exception e) {
@@ -311,28 +318,40 @@ public class MyXMPP {
     }
 
     private class MMessageListener implements ChatMessageListener, ChatStateListener {
+        private static final String TAG = "MMessageListener";
 
         MMessageListener(Context contxt) {
         }
 
-
         @Override
-        public void processMessage(final org.jivesoftware.smack.chat.Chat chat,
-                                   final Message message) {
-            Log.e("MyXMPP_MESSAGE_LISTENER", "Xmpp message received: '"
-                    + message.toString() + " & message.getFrom() :" + message.getFrom());
+        public void processMessage(Chat chat, final Message message) {
+            // Log.i(TAG, "processMessage FROM:" + message.getFrom() + " &TYPE:" + message.getType().toString());
+            //Log.i(TAG, "processMessage details : " + message.toXML());
 
-            Message messageReceipt = new Message(message.getFrom());
-            ReadReceipt read = new ReadReceipt(message.getStanzaId());
-            messageReceipt.addExtension(read);
-            try {
-                connection.sendStanza(messageReceipt);
-            } catch (SmackException.NotConnectedException e) {
-                e.printStackTrace();
+            DeliveryReceipt dr = message.getExtension(DeliveryReceipt.ELEMENT, DeliveryReceipt.NAMESPACE);
+            if (dr != null) {
+                Log.i(TAG, "Type DELIVERY REPORTS");
+                return;
             }
 
             if (message.getType() == Message.Type.chat
                     && message.getBody() != null) {
+                Log.e("MyXMPP_MESSAGE_LISTENER", "Xmpp message received: '"
+                        + message.toString() + " & message.getFrom() :" + message.getFrom());
+
+                Message messageReceipt = new Message(message.getFrom());
+                message.setStanzaId(message.getStanzaId());
+                message.setFrom(getUserId());
+                messageReceipt.setType(Message.Type.normal);
+                ReadReceiptManager.ReadReceipt read = new ReadReceiptManager.ReadReceipt(message.getStanzaId());
+                messageReceipt.addExtension(read);
+                try {
+                    connection.sendStanza(messageReceipt);
+                    Log.i(TAG, "Read receipt sent");
+                } catch (SmackException.NotConnectedException e) {
+                    e.printStackTrace();
+                }
+
                 final ChatMessage chatMessage = gson.fromJson(
                         message.getBody(), ChatMessage.class);
                 processMessage(chatMessage);
@@ -343,7 +362,6 @@ public class MyXMPP {
             chatMessage.isMine = false;
             Chats.chatlist.add(chatMessage);
             new Handler(Looper.getMainLooper()).post(new Runnable() {
-
                 @Override
                 public void run() {
                     Chats.chatAdapter.notifyDataSetChanged();
@@ -393,43 +411,6 @@ public class MyXMPP {
             public void processPacket(Stanza packet) throws SmackException.NotConnectedException {
             }
         });
-    }
-
-    public class ReadReceipt implements ExtensionElement {
-        public static final String NAMESPACE = "urn:xmpp:read";
-        public static final String ELEMENT = "read";
-
-        private String id; /// original ID of the delivered message
-
-        public ReadReceipt(String id) {
-            this.id = id;
-        }
-
-        public String getId() {
-            return id;
-        }
-
-        @Override
-        public String getElementName() {
-            return ELEMENT;
-        }
-
-        @Override
-        public String getNamespace() {
-            return NAMESPACE;
-        }
-
-        @Override
-        public String toXML() {
-            return "<read xmlns='" + NAMESPACE + "' id='" + id + "'/>";
-        }
-    }
-
-    public class ReadReceiptProvider extends EmbeddedExtensionProvider {
-        @Override
-        protected ExtensionElement createReturnExtension(String currentElement, String currentNamespace, Map attributeMap, List content) {
-            return new ReadReceipt((String) attributeMap.get("id"));
-        }
     }
 
 //    public void getUser() {
