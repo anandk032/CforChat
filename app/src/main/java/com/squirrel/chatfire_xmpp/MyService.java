@@ -105,7 +105,6 @@ public class MyService extends Service {
         xmpp.connect();
     }
 
-
     private void register() {
         if (mSendMessageBroadcast == null) {
             mSendMessageBroadcast = new SendMessageBroadcast();
