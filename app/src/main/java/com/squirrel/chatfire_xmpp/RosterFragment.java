@@ -9,13 +9,15 @@ import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
+
+import java.util.ArrayList;
 
 /**
  * A simple {@link Fragment} subclass.
  */
 public class RosterFragment extends Fragment implements UserAdapter.OnItemViewClickListener {
 
+    private ArrayList<String> userList;
 
     public RosterFragment() {
         // Required empty public constructor
@@ -37,14 +39,30 @@ public class RosterFragment extends Fragment implements UserAdapter.OnItemViewCl
 
         recyclerView = (RecyclerView) view.findViewById(R.id.alluser);
         recyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
-
+        userList = new ArrayList<>();
         userAdapter = new UserAdapter();
+        addUserInRoster();
         userAdapter.setOnItemViewClickListener(this);
         recyclerView.setAdapter(userAdapter);
     }
 
     @Override
     public void onClick(String user) {
-        ((MainActivity) getActivity()).switchContent(Chats.newInstance(user), false);
+
+        ((MainActivity) getActivity()).switchContent(Chats.newInstance(user.split("@")[0]), true);
     }
+
+    private void addUserInRoster() {
+        userList.add("dharmesh@54.205.116.234");
+        userList.add("vijay@54.205.116.234");
+        userList.add("zen@54.205.116.234");
+        userList.add("anand@54.205.116.234");
+        userList.add("tapan@54.205.116.234");
+        userList.add("ravi@54.205.116.234");
+
+
+        userAdapter.addData(userList);
+    }
+
+
 }

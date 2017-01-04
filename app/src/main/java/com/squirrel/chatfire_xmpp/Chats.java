@@ -23,7 +23,7 @@ import java.util.Random;
 
 public class Chats extends Fragment implements View.OnClickListener {
     private EditText msg_edittext;
-    private String user1 = "vijay", user2 = "dharmesh";// chating with self
+    private String user1 = "vijay", user2;// chating with self
     private Random random;
     public static ArrayList<ChatMessage> chatlist;
     public static ChatAdapter chatAdapter;
@@ -45,7 +45,7 @@ public class Chats extends Fragment implements View.OnClickListener {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (getArguments() != null) {
-//            user2 = getArguments().getString(PARAM_USER);
+            user2 = getArguments().getString(PARAM_USER);
         }
     }
 
@@ -70,6 +70,8 @@ public class Chats extends Fragment implements View.OnClickListener {
         chatlist = new ArrayList<ChatMessage>();
         chatAdapter = new ChatAdapter(chatlist);
         msgListView.setAdapter(chatAdapter);
+
+        ((MainActivity) getActivity()).getSupportActionBar().setTitle(user2);
         return view;
     }
 
@@ -108,5 +110,10 @@ public class Chats extends Fragment implements View.OnClickListener {
                 sendTextMessage(v);
 
         }
+    }
+
+    public boolean onBackPressed() {
+        ((MainActivity) getActivity()).goBack();
+        return false;
     }
 }

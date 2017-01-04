@@ -4,18 +4,22 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.view.View;
+import android.view.Menu;
+import android.view.MenuItem;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private MyService mService;
     private boolean mBounded;
+    private SharedPreferences prefs;
     private final ServiceConnection mConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
@@ -36,16 +40,31 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        prefs = PreferenceManager.getDefaultSharedPreferences(this);
         doBindService();
-        switchContent(Chats.newInstance(""), false);
-//        switchContent(new Chats(), false);
+        switchContent(new RosterFragment(), false);
+    }
 
-        findViewById(R.id.btnGetUser).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                // getmService().xmpp.precence();
-            }
-        });
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.main_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+
+        if (id == R.id.action_log_out) {
+            doUnbindService();
+            stopService(new Intent(this, MyService.class));
+            prefs.edit().clear().commit();
+            finish();
+            startActivity(new Intent(this, LoginActivity.class));
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
     }
 
     public void switchContent(Fragment fragment, boolean isAddBackStack) {
@@ -79,5 +98,24 @@ public class MainActivity extends AppCompatActivity {
         doUnbindService();
     }
 
+    @Override
+    public void onBackPressed() {
 
+        Fragment f = getSupportFragmentManager().findFragmentByTag(Chats.class.getSimpleName());
+        if (f != null && !((Chats) f).onBackPressed()) {
+            return;
+        }
+
+        if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
+            super.onBackPressed();
+            return;
+        }
+
+    }
+
+    public void goBack() {
+        if (getSupportFragmentManager() != null) {
+            getSupportFragmentManager().popBackStack();
+        }
+    }
 }

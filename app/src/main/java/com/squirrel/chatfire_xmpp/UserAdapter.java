@@ -18,7 +18,8 @@ import java.util.List;
  */
 
 public class UserAdapter extends RecyclerView.Adapter<UserAdapter.MyViewHolder> {
-    private List<RosterEntry> entries = new ArrayList<>();
+    private List<String> entries = new ArrayList<>();
+
 
     @Override
     public MyViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
@@ -27,14 +28,14 @@ public class UserAdapter extends RecyclerView.Adapter<UserAdapter.MyViewHolder> 
 
     @Override
     public void onBindViewHolder(final MyViewHolder holder, int position) {
-        holder.textView.setText(entries.get(position).getName());
+        holder.textView.setText(entries.get(position));
 //        holder.status.setText(entries.get(position).getStatus().compareTo(RosterPacket.ItemStatus.subscribe));
 
         holder.textView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 if (onItemViewClickListener != null) {
-                    onItemViewClickListener.onClick(entries.get(holder.getAdapterPosition()).getName());
+                    onItemViewClickListener.onClick(entries.get(holder.getAdapterPosition()));
                 }
             }
         });
@@ -45,7 +46,7 @@ public class UserAdapter extends RecyclerView.Adapter<UserAdapter.MyViewHolder> 
         return entries.size();
     }
 
-    public void addData(List<RosterEntry> list) {
+    public void addData(List<String> list) {
         entries.clear();
         entries.addAll(list);
         notifyDataSetChanged();
