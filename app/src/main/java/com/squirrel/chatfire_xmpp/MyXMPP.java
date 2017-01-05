@@ -61,8 +61,6 @@ public class MyXMPP implements StanzaListener {
     private ChatManagerListenerImpl mChatManagerListener;
     private MMessageListener mMessageListener;
 
-    private MessageEventManager mMessageEventManager;
-
 
     static {
         try {
@@ -114,7 +112,6 @@ public class MyXMPP implements StanzaListener {
         connection.addConnectionListener(connectionListener);
         connection.addStanzaAcknowledgedListener(this);
 
-        chatStateRecognizer();
 
         ReadReceiptManager.getInstanceFor(connection);
         //ReadReceiptManager.getInstanceFor(connection).addReadReceivedListener(new ReadReceiptListener());
@@ -176,8 +173,8 @@ public class MyXMPP implements StanzaListener {
             return;
         }
 
-        //DeliveryReceiptManager dm = DeliveryReceiptManager
-        //        .getInstanceFor(connection);
+        // DeliveryReceiptManager dm = DeliveryReceiptManager
+        // .getInstanceFor(connection);
         //dm.setAutoReceiptMode(DeliveryReceiptManager.AutoReceiptMode.always);
         //dm.addReceiptReceivedListener(new ReceiptReceivedListener() {
         //    @Override
@@ -379,11 +376,6 @@ public class MyXMPP implements StanzaListener {
                 //sendReadReceipt(message);
                 //sendDoubleTick(message);
 
-                try {
-                    mMessageEventManager.sendDeliveredNotification(message.getFrom(), message.getStanzaId());
-                } catch (SmackException.NotConnectedException e) {
-                    e.printStackTrace();
-                }
 
                 final ChatMessage chatMessage = gson.fromJson(
                         message.getBody(), ChatMessage.class);
@@ -507,37 +499,6 @@ public class MyXMPP implements StanzaListener {
         connection.addStanzaAcknowledgedListener(new StanzaListener() {
             @Override
             public void processPacket(Stanza packet) throws SmackException.NotConnectedException {
-            }
-        });
-    }
-
-
-    private void chatStateRecognizer() {
-        mMessageEventManager = new MessageEventManager(connection);
-        mMessageEventManager.addMessageEventNotificationListener(new MessageEventManager.MessageEventNotificationListener() {
-            @Override
-            public void deliveredNotification(String from, String packetID) {
-                Log.e(TAG, "deliveredNotification: from" + from + " pid " + packetID);
-            }
-
-            @Override
-            public void displayedNotification(String from, String packetID) {
-                Log.e(TAG, "displayedNotification: from" + from + " pid " + packetID);
-            }
-
-            @Override
-            public void composingNotification(String from, String packetID) {
-                Log.e(TAG, "composingNotification: from" + from + " pid " + packetID);
-            }
-
-            @Override
-            public void offlineNotification(String from, String packetID) {
-                Log.e(TAG, "offlineNotification: from" + from + " pid " + packetID);
-            }
-
-            @Override
-            public void cancelledNotification(String from, String packetID) {
-                Log.e(TAG, "cancelledNotification: from" + from + " pid " + packetID);
             }
         });
     }
