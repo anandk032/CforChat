@@ -30,7 +30,6 @@ import org.jivesoftware.smackx.chatstates.ChatStateListener;
 import org.jivesoftware.smackx.pubsub.provider.SubscriptionProvider;
 import org.jivesoftware.smackx.receipts.DeliveryReceipt;
 import org.jivesoftware.smackx.receipts.DeliveryReceiptManager;
-import org.jivesoftware.smackx.receipts.DeliveryReceiptRequest;
 import org.jivesoftware.smackx.receipts.ReceiptReceivedListener;
 import org.jivesoftware.smackx.search.UserSearchManager;
 
@@ -111,10 +110,10 @@ public class MyXMPP implements StanzaListener {
         connection.addConnectionListener(connectionListener);
         connection.addStanzaAcknowledgedListener(this);
         ReadReceiptManager.getInstanceFor(connection);
-        ReadReceiptManager.getInstanceFor(connection).addReadReceivedListener(new ReadReceiptListener());
+        //ReadReceiptManager.getInstanceFor(connection).addReadReceivedListener(new ReadReceiptListener());
 
         DoubleTickManager.getInstanceFor(connection);
-//        ReadReceiptManager.getInstanceFor(connection).addReadReceivedListener(new ReadReceiptListener());
+        //DoubleTickManager.getInstanceFor(connection).addReadReceivedListener(new ReadReceiptListener());
 
         //add read receipt provider
         ProviderManager.addExtensionProvider(ReadReceiptManager.ReadReceipt.ELEMENT, ReadReceiptManager.ReadReceipt.NAMESPACE, new ReadReceiptManager.ReadReceiptProvider());
@@ -238,7 +237,7 @@ public class MyXMPP implements StanzaListener {
         message.setStanzaId(chatMessage.msgId);
         message.setType(Message.Type.chat);
         try {
-            DeliveryReceiptRequest.addTo(message);
+            //DeliveryReceiptRequest.addTo(message);
             chat.sendMessage(message);
             Log.i(TAG, "Chat message sent msgId:" + message.getStanzaId());
         } catch (SmackException.NotConnectedException e) {
@@ -336,7 +335,7 @@ public class MyXMPP implements StanzaListener {
             DeliveryReceipt dr = message.getExtension(DeliveryReceipt.ELEMENT, DeliveryReceipt.NAMESPACE);
             if (dr != null) {
                 Log.i(TAG, "Type DELIVERY REPORTS " + message.getStanzaId());
-//                return;
+                return;
             }
 
             DoubleTickManager.DoubleTickReceipt dtr = message.getExtension(DoubleTickManager.DoubleTickReceipt.ELEMENT, DoubleTickManager.DoubleTickReceipt.NAMESPACE);
@@ -344,6 +343,7 @@ public class MyXMPP implements StanzaListener {
                 Log.i(TAG, "Type DOUBLE TICK Received " + message.getStanzaId());
                 return;
             }
+
             if (message.getType() == Message.Type.chat
                     && message.getBody() != null) {
                 Log.e("MyXMPP_MESSAGE_LISTENER", "Xmpp message received: '"
@@ -375,7 +375,7 @@ public class MyXMPP implements StanzaListener {
 
         private void sendDoubleTick(Message message) {
             Message messageDoubleTick = new Message(message.getFrom());
-            messageDoubleTick.setStanzaId(message.getStanzaId());
+            messageDoubleTick.setStanzaId(null);
             messageDoubleTick.setFrom(getUserId());
             messageDoubleTick.setType(Message.Type.normal);
             DoubleTickManager.DoubleTickReceipt read = new DoubleTickManager.DoubleTickReceipt(messageDoubleTick.getStanzaId());

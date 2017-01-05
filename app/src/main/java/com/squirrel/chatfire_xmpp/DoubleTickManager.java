@@ -60,7 +60,7 @@ public class DoubleTickManager implements StanzaListener {
 
     public static class DoubleTickReceipt implements ExtensionElement {
         public static final String NAMESPACE = "urn:xmpp:double:tick";
-        public static final String ELEMENT = "double:tick";
+        public static final String ELEMENT = "doubletick";
 
         private String id; /// original ID of the delivered message
 
@@ -84,7 +84,7 @@ public class DoubleTickManager implements StanzaListener {
 
         @Override
         public String toXML() {
-            return "<read xmlns='" + NAMESPACE + "' id='" + id + "'/>";
+            return "<" + ELEMENT + " xmlns='" + NAMESPACE + "' id='" + id + "'/>";
         }
     }
 
