@@ -17,9 +17,9 @@ import android.widget.EditText;
 
 public class ChatEditText extends EditText {
 
-
     private Handler handler = new Handler();
     private boolean previousFocusStatus;
+    private String chatId = null;
 
     public ChatEditText(Context context) {
         super(context);
@@ -93,11 +93,22 @@ public class ChatEditText extends EditText {
     }
 
     private void sendBroadcast(boolean typing) {
+        if (chatId == null) return;
+
         Intent intent;
         if (typing)
             intent = new Intent(MyService.SendMessageBroadcast.ACTION_XMPP_COMPOSING_MESSAGE);
         else
             intent = new Intent(MyService.SendMessageBroadcast.ACTION_XMPP_COMPOSING_PAUSE_MESSAGE);
+        intent.putExtra(MyService.SendMessageBroadcast.BUNDLE_MSG_TO, chatId);
         getContext().sendBroadcast(intent);
+    }
+
+    public String getChatId() {
+        return chatId;
+    }
+
+    public void setChatId(String chatId) {
+        this.chatId = chatId;
     }
 }

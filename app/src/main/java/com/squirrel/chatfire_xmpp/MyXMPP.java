@@ -67,6 +67,7 @@ public class MyXMPP implements StanzaListener {
     private MMessageListener mMessageListener;
     private MessageEventManager messageEventManager;
 
+    private static final String[] list = new String[]{"dharmesh@ip-172-31-53-77.ec2.internal", "vijay@ip-172-31-53-77.ec2.internal", "anand@ip-172-31-53-77.ec2.internal", "tapan@ip-172-31-53-77.ec2.internal"};
 
     static {
         try {

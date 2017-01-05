@@ -10,7 +10,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.EditText;
 
 import com.squirrel.chatfire_xmpp.model.ChatMessage;
 
@@ -22,7 +21,7 @@ import java.util.Random;
  */
 
 public class Chats extends Fragment implements View.OnClickListener {
-    private EditText msg_edittext;
+    private ChatEditText msg_edittext;
     private String user1 = "vijay", user2;// chating with self
     private Random random;
     public static ArrayList<ChatMessage> chatlist = new ArrayList<>();
@@ -56,7 +55,8 @@ public class Chats extends Fragment implements View.OnClickListener {
         random = new Random();
         ((MainActivity) getActivity()).getSupportActionBar().setTitle(
                 "Chats");
-        msg_edittext = (EditText) view.findViewById(R.id.messageEditText);
+        msg_edittext = (ChatEditText) view.findViewById(R.id.messageEditText);
+        msg_edittext.setChatId(user2);
         msgListView = (RecyclerView) view.findViewById(R.id.msgListView);
         msgListView.setLayoutManager(new LinearLayoutManager(getActivity()));
         Button sendButton = (Button) view
