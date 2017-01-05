@@ -33,6 +33,11 @@ import org.jivesoftware.smackx.pubsub.provider.SubscriptionProvider;
 import org.jivesoftware.smackx.receipts.DeliveryReceipt;
 import org.jivesoftware.smackx.receipts.ReceiptReceivedListener;
 import org.jivesoftware.smackx.search.UserSearchManager;
+import org.jivesoftware.smackx.xevent.DefaultMessageEventRequestListener;
+import org.jivesoftware.smackx.xevent.MessageEventManager;
+import org.jivesoftware.smackx.xevent.MessageEventNotificationListener;
+import org.jivesoftware.smackx.xevent.packet.MessageEvent;
+import org.jivesoftware.smackx.xevent.provider.MessageEventProvider;
 
 import java.io.IOException;
 
@@ -60,6 +65,7 @@ public class MyXMPP implements StanzaListener {
 
     private ChatManagerListenerImpl mChatManagerListener;
     private MMessageListener mMessageListener;
+    private MessageEventManager messageEventManager;
 
 
     static {
@@ -69,6 +75,7 @@ public class MyXMPP implements StanzaListener {
             // problem loading reconnection manager
         }
     }
+
 
     private MyXMPP(MyService context, String serverAdress, String logiUser,
                    String passwordser) {
@@ -121,6 +128,7 @@ public class MyXMPP implements StanzaListener {
         //add read receipt,double tick provider
         ProviderManager.addExtensionProvider(ReadReceiptManager.ReadReceipt.ELEMENT, ReadReceiptManager.ReadReceipt.NAMESPACE, new ReadReceiptManager.ReadReceiptProvider());
         ProviderManager.addExtensionProvider(DoubleTickManager.DoubleTickReceipt.ELEMENT, DoubleTickManager.DoubleTickReceipt.NAMESPACE, new DoubleTickManager.DoubleTickProvider());
+        ProviderManager.addExtensionProvider(MessageEvent.ELEMENT, MessageEvent.NAMESPACE, new MessageEventProvider());
     }
 
     public String getUserId() {
@@ -159,6 +167,7 @@ public class MyXMPP implements StanzaListener {
             reconnectionManager.setFixedDelay(5);
 
             listenDeliveryReports();
+            listenMessageEvent();
         } catch (SmackException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -166,6 +175,40 @@ public class MyXMPP implements StanzaListener {
         } catch (XMPPException e) {
             e.printStackTrace();
         }
+    }
+
+    private void listenMessageEvent() {
+        messageEventManager = MessageEventManager.getInstanceFor(connection);
+        messageEventManager.addMessageEventRequestListener(new DefaultMessageEventRequestListener());
+        messageEventManager.addMessageEventNotificationListener(new MessageEventNotificationListener() {
+            @Override
+            public void deliveredNotification(String from, String packetID) {
+                Log.e(TAG, "deliveredNotification: from" + from);
+            }
+
+            @Override
+            public void displayedNotification(String from, String packetID) {
+                Log.e(TAG, "displayedNotification: from" + from);
+            }
+
+            @Override
+            public void composingNotification(String from, String packetID) {
+                Log.e(TAG, "composingNotification: from" + from);
+
+            }
+
+            @Override
+            public void offlineNotification(String from, String packetID) {
+                Log.e(TAG, "offlineNotification: from" + from);
+
+            }
+
+            @Override
+            public void cancelledNotification(String from, String packetID) {
+                Log.e(TAG, "cancelledNotification: from" + from);
+
+            }
+        });
     }
 
     private void listenDeliveryReports() {
@@ -254,6 +297,7 @@ public class MyXMPP implements StanzaListener {
         message.setStanzaId(chatMessage.msgId);
         message.setType(Message.Type.chat);
         try {
+            MessageEventManager.addNotificationsRequests(message, true, true, true, true);
             chat.sendMessage(message);
             Log.i(TAG, "Chat message sent msgId:" + message.getStanzaId());
         } catch (SmackException.NotConnectedException e) {
