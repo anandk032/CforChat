@@ -114,6 +114,8 @@ public class MyXMPP implements StanzaListener {
         connection.addConnectionListener(connectionListener);
         connection.addStanzaAcknowledgedListener(this);
 
+        chatStateRecognizer();
+
         ReadReceiptManager.getInstanceFor(connection);
         //ReadReceiptManager.getInstanceFor(connection).addReadReceivedListener(new ReadReceiptListener());
         DoubleTickManager.getInstanceFor(connection);
@@ -375,7 +377,13 @@ public class MyXMPP implements StanzaListener {
                         + message.toString() + " & message.getFrom() :" + message.getFrom());
 
                 //sendReadReceipt(message);
-                sendDoubleTick(message);
+                //sendDoubleTick(message);
+
+                try {
+                    mMessageEventManager.sendDeliveredNotification(message.getFrom(), message.getStanzaId());
+                } catch (SmackException.NotConnectedException e) {
+                    e.printStackTrace();
+                }
 
                 final ChatMessage chatMessage = gson.fromJson(
                         message.getBody(), ChatMessage.class);
@@ -505,44 +513,32 @@ public class MyXMPP implements StanzaListener {
 
 
     private void chatStateRecognizer() {
-
-        Thread thread = new Thread(new Runnable() {
+        mMessageEventManager = new MessageEventManager(connection);
+        mMessageEventManager.addMessageEventNotificationListener(new MessageEventManager.MessageEventNotificationListener() {
             @Override
-            public void run() {
-                mMessageEventManager = new MessageEventManager(connection);
-
-                mMessageEventManager.addMessageEventNotificationListener(new MessageEventManager.MessageEventNotificationListener() {
-
-
-                    @Override
-                    public void deliveredNotification(String from, String packetID) {
-
-                    }
-
-                    @Override
-                    public void displayedNotification(String from, String packetID) {
-
-                    }
-
-                    @Override
-                    public void composingNotification(String from, String packetID) {
-                        Log.e(TAG, "composingNotification: from" + from + " pid " + packetID);
-                    }
-
-                    @Override
-                    public void offlineNotification(String from, String packetID) {
-
-                    }
-
-                    @Override
-                    public void cancelledNotification(String from, String packetID) {
-                        Log.e(TAG, "cancelledNotification: from" + from + " pid " + packetID);
-                    }
-                });
-
-
+            public void deliveredNotification(String from, String packetID) {
+                Log.e(TAG, "deliveredNotification: from" + from + " pid " + packetID);
             }
 
+            @Override
+            public void displayedNotification(String from, String packetID) {
+                Log.e(TAG, "displayedNotification: from" + from + " pid " + packetID);
+            }
+
+            @Override
+            public void composingNotification(String from, String packetID) {
+                Log.e(TAG, "composingNotification: from" + from + " pid " + packetID);
+            }
+
+            @Override
+            public void offlineNotification(String from, String packetID) {
+                Log.e(TAG, "offlineNotification: from" + from + " pid " + packetID);
+            }
+
+            @Override
+            public void cancelledNotification(String from, String packetID) {
+                Log.e(TAG, "cancelledNotification: from" + from + " pid " + packetID);
+            }
         });
     }
 
