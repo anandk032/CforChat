@@ -61,6 +61,9 @@ public class MyXMPP implements StanzaListener {
     private ChatManagerListenerImpl mChatManagerListener;
     private MMessageListener mMessageListener;
 
+    private MessageEventManager mMessageEventManager;
+
+
     static {
         try {
             Class.forName("org.jivesoftware.smack.ReconnectionManager");
@@ -238,6 +241,7 @@ public class MyXMPP implements StanzaListener {
     }
 
     void sendMessage(ChatMessage chatMessage) {
+
         String body = gson.toJson(chatMessage);
 
         String to = chatMessage.receiverId + "@"
@@ -498,6 +502,50 @@ public class MyXMPP implements StanzaListener {
             }
         });
     }
+
+
+    private void chatStateRecognizer() {
+
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                mMessageEventManager = new MessageEventManager(connection);
+
+                mMessageEventManager.addMessageEventNotificationListener(new MessageEventManager.MessageEventNotificationListener() {
+
+
+                    @Override
+                    public void deliveredNotification(String from, String packetID) {
+
+                    }
+
+                    @Override
+                    public void displayedNotification(String from, String packetID) {
+
+                    }
+
+                    @Override
+                    public void composingNotification(String from, String packetID) {
+                        Log.e(TAG, "composingNotification: from" + from + " pid " + packetID);
+                    }
+
+                    @Override
+                    public void offlineNotification(String from, String packetID) {
+
+                    }
+
+                    @Override
+                    public void cancelledNotification(String from, String packetID) {
+                        Log.e(TAG, "cancelledNotification: from" + from + " pid " + packetID);
+                    }
+                });
+
+
+            }
+
+        });
+    }
+
 
 //    public void getUser() {
 //        if (false) {
