@@ -263,6 +263,14 @@ public class MyXMPP implements StanzaListener {
         }
     }
 
+    public void composingPauseMessage() {
+//        MessageEventManager.getInstanceFor(connection).sendComposingNotification();
+    }
+
+    public void composingMessage() {
+
+    }
+
     private class ChatManagerListenerImpl implements ChatManagerListener {
         @Override
         public void chatCreated(final Chat chat,

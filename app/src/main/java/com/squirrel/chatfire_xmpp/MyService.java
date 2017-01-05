@@ -122,6 +122,8 @@ public class MyService extends Service {
 
     public class SendMessageBroadcast extends BroadcastReceiver {
         public static final String ACTION_XMPP_SEND_MESSAGE = "com.meetwo.XMPP_SEND_MESSAGE";
+        public static final String ACTION_XMPP_COMPOSING_MESSAGE = "com.meetwo.XMPP_COMPOSING_MESSAGE";
+        public static final String ACTION_XMPP_COMPOSING_PAUSE_MESSAGE = "com.meetwo.XMPP_COMPOSING_PAUSE_MESSAGE";
         public static final String BUNDLE_MSG_BODY = "msg_body";
         public static final String BUNDLE_MSG_TO = "msg_to";
 
@@ -132,8 +134,14 @@ public class MyService extends Service {
 
             if (ACTION_XMPP_SEND_MESSAGE.equalsIgnoreCase(intent.getAction())) {
                 sendMessage(intent.getStringExtra(BUNDLE_MSG_TO), intent.getStringExtra(BUNDLE_MSG_BODY));
+            } else if (ACTION_XMPP_COMPOSING_MESSAGE.equalsIgnoreCase(intent.getAction())) {
+                composingMessage();
+            } else if (ACTION_XMPP_COMPOSING_PAUSE_MESSAGE.equalsIgnoreCase(intent.getAction())) {
+                composingPauseMessage();
             }
+
         }
+
 
         private void sendMessage(String to, String body) {
             if (xmpp != null) {
@@ -141,6 +149,18 @@ public class MyService extends Service {
                 ChatMessage chatMessage = new ChatMessage(xmpp.getUserId(), to, body, msgId, true);
                 xmpp.sendMessage(chatMessage);
             }
+        }
+    }
+
+    private void composingPauseMessage() {
+        if (xmpp != null) {
+            xmpp.composingPauseMessage();
+        }
+    }
+
+    private void composingMessage() {
+        if (xmpp != null) {
+            xmpp.composingMessage();
         }
     }
 
