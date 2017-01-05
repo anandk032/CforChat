@@ -68,4 +68,5 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.MyViewHolder> 
     public void add(ChatMessage object) {
         messages.add(object);
     }
+
 }

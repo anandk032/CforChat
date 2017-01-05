@@ -73,7 +73,9 @@ public class Chats extends Fragment implements View.OnClickListener {
         msg_edittext = (ChatEditText) view.findViewById(R.id.messageEditText);
         msg_edittext.setChatId(user2);
         msgListView = (RecyclerView) view.findViewById(R.id.msgListView);
-        msgListView.setLayoutManager(new LinearLayoutManager(getActivity()));
+        LinearLayoutManager linearManager = new LinearLayoutManager(getActivity());
+        //linearManager.setReverseLayout(true);
+        msgListView.setLayoutManager(linearManager);
         Button sendButton = (Button) view
                 .findViewById(R.id.sendMessageButton);
         sendButton.setOnClickListener(this);
