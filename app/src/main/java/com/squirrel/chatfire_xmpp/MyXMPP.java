@@ -4,6 +4,7 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.google.gson.Gson;
 import com.squirrel.chatfire_xmpp.model.ChatMessage;
@@ -23,13 +24,13 @@ import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.packet.Stanza;
 import org.jivesoftware.smack.provider.ProviderManager;
+import org.jivesoftware.smack.roster.packet.RosterPacket;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
 import org.jivesoftware.smackx.chatstates.ChatState;
 import org.jivesoftware.smackx.chatstates.ChatStateListener;
 import org.jivesoftware.smackx.pubsub.provider.SubscriptionProvider;
 import org.jivesoftware.smackx.receipts.DeliveryReceipt;
-import org.jivesoftware.smackx.receipts.DeliveryReceiptManager;
 import org.jivesoftware.smackx.receipts.ReceiptReceivedListener;
 import org.jivesoftware.smackx.search.UserSearchManager;
 
@@ -109,13 +110,13 @@ public class MyXMPP implements StanzaListener {
         XMPPConnectionListener connectionListener = new XMPPConnectionListener();
         connection.addConnectionListener(connectionListener);
         connection.addStanzaAcknowledgedListener(this);
+
         ReadReceiptManager.getInstanceFor(connection);
         //ReadReceiptManager.getInstanceFor(connection).addReadReceivedListener(new ReadReceiptListener());
-
         DoubleTickManager.getInstanceFor(connection);
         //DoubleTickManager.getInstanceFor(connection).addReadReceivedListener(new ReadReceiptListener());
 
-        //add read receipt provider
+        //add read receipt,double tick provider
         ProviderManager.addExtensionProvider(ReadReceiptManager.ReadReceipt.ELEMENT, ReadReceiptManager.ReadReceipt.NAMESPACE, new ReadReceiptManager.ReadReceiptProvider());
         ProviderManager.addExtensionProvider(DoubleTickManager.DoubleTickReceipt.ELEMENT, DoubleTickManager.DoubleTickReceipt.NAMESPACE, new DoubleTickManager.DoubleTickProvider());
     }
@@ -152,8 +153,8 @@ public class MyXMPP implements StanzaListener {
             ReconnectionManager reconnectionManager = ReconnectionManager.getInstanceFor(connection);
             ReconnectionManager.setEnabledPerDefault(true);
             reconnectionManager.enableAutomaticReconnection();
-            reconnectionManager.setReconnectionPolicy(ReconnectionManager.ReconnectionPolicy.FIXED_DELAY);
-            reconnectionManager.setFixedDelay(30);
+            reconnectionManager.setReconnectionPolicy(ReconnectionManager.ReconnectionPolicy.RANDOM_INCREASING_DELAY);
+            reconnectionManager.setFixedDelay(5);
 
             listenDeliveryReports();
         } catch (SmackException e) {
@@ -170,17 +171,17 @@ public class MyXMPP implements StanzaListener {
             return;
         }
 
-        DeliveryReceiptManager dm = DeliveryReceiptManager
-                .getInstanceFor(connection);
+        //DeliveryReceiptManager dm = DeliveryReceiptManager
+        //        .getInstanceFor(connection);
         //dm.setAutoReceiptMode(DeliveryReceiptManager.AutoReceiptMode.always);
-        dm.addReceiptReceivedListener(new ReceiptReceivedListener() {
-            @Override
-            public void onReceiptReceived(final String fromId,
-                                          final String toId, final String msgId,
-                                          final Stanza packet) {
-                Log.i(TAG, "DeliveryReceiptManager RECEIVED RECEIPT: " + "fromId :" + fromId + " to:" + toId + " & msgId:" + msgId + " & stanzaId:" + packet.getStanzaId());
-            }
-        });
+        //dm.addReceiptReceivedListener(new ReceiptReceivedListener() {
+        //    @Override
+        //    public void onReceiptReceived(final String fromId,
+        //                                  final String toId, final String msgId,
+        //                                  final Stanza packet) {
+        //        Log.i(TAG, "DeliveryReceiptManager RECEIVED RECEIPT: " + "fromId :" + fromId + " to:" + toId + " & msgId:" + msgId + " & stanzaId:" + packet.getStanzaId());
+        //    }
+        //});
     }
 
 
@@ -200,8 +201,21 @@ public class MyXMPP implements StanzaListener {
 
     /*Stanza acknowledge listener*/
     @Override
-    public void processPacket(Stanza packet) throws SmackException.NotConnectedException {
-        Log.i(TAG, "Atanza ACK :" + packet.toXML());
+    public synchronized void processPacket(Stanza packet) throws SmackException.NotConnectedException {
+        if (packet == null) return;
+
+        if (packet instanceof Message) {
+            Message message = (Message) packet;
+            if (message.getType() == Message.Type.chat) {
+                Log.i(TAG, "Stanza ACK CHAT ONE-TICK: id:" + packet.getStanzaId() + " ----->" + packet.toXML());
+            }
+        } else if (packet instanceof RosterPacket) {
+            Log.i(TAG, "Stanza ACK ROSTER_PACKET: id:" + packet.getStanzaId() + " ----->" + packet.toXML());
+        } else if (packet instanceof Presence) {
+            Log.i(TAG, "Stanza ACK PRESENCE: id:" + packet.getStanzaId() + " ----->" + packet.toXML());
+        } else {
+            Log.i(TAG, "Stanza ACK : id:" + packet.getStanzaId() + " ----->" + packet.toXML());
+        }
     }
 
     private class ChatManagerListenerImpl implements ChatManagerListener {
@@ -237,7 +251,6 @@ public class MyXMPP implements StanzaListener {
         message.setStanzaId(chatMessage.msgId);
         message.setType(Message.Type.chat);
         try {
-            //DeliveryReceiptRequest.addTo(message);
             chat.sendMessage(message);
             Log.i(TAG, "Chat message sent msgId:" + message.getStanzaId());
         } catch (SmackException.NotConnectedException e) {
@@ -303,6 +316,16 @@ public class MyXMPP implements StanzaListener {
             Log.d(TAG, "Authenticated!");
             loggedin = true;
 
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(context,
+                            "Authenticated",
+                            Toast.LENGTH_LONG).show();
+                }
+            });
+
+
             ChatManager.getInstanceFor(connection).addChatListener(
                     mChatManagerListener);
 
@@ -330,16 +353,14 @@ public class MyXMPP implements StanzaListener {
         @Override
         public void processMessage(Chat chat, final Message message) {
             // Log.i(TAG, "processMessage FROM:" + message.getFrom() + " &TYPE:" + message.getType().toString());
-            Log.i(TAG, "processMessage details : " + message.toXML());
+            Log.i(TAG, "Received processMessage details : " + message.toXML());
 
-            DeliveryReceipt dr = message.getExtension(DeliveryReceipt.ELEMENT, DeliveryReceipt.NAMESPACE);
-            if (dr != null) {
+            if (checkReadReceipt(message)) {
                 Log.i(TAG, "Type DELIVERY REPORTS " + message.getStanzaId());
                 return;
             }
 
-            DoubleTickManager.DoubleTickReceipt dtr = message.getExtension(DoubleTickManager.DoubleTickReceipt.ELEMENT, DoubleTickManager.DoubleTickReceipt.NAMESPACE);
-            if (dtr != null) {
+            if (checkDoubleTickReceipt(message)) {
                 Log.i(TAG, "Type DOUBLE TICK Received " + message.getStanzaId());
                 return;
             }
@@ -419,6 +440,41 @@ public class MyXMPP implements StanzaListener {
                     break;
             }
         }
+    }
+
+
+    private boolean checkReadReceipt(Object message) {
+        if (message instanceof Message) {
+            ReadReceiptManager.ReadReceipt dr = ((Message) message).getExtension(ReadReceiptManager.ReadReceipt.ELEMENT, ReadReceiptManager.ReadReceipt.NAMESPACE);
+            if (dr != null) {
+                Log.i(TAG, "Type Read Receipt->" + ((Message) message).getStanzaId());
+                return true;
+            }
+        } else if (message instanceof Stanza) {
+            DeliveryReceipt dr = ((Stanza) message).getExtension(ReadReceiptManager.ReadReceipt.ELEMENT, ReadReceiptManager.ReadReceipt.NAMESPACE);
+            if (dr != null) {
+                Log.i(TAG, "Type Read Receipt->" + ((Stanza) message).getStanzaId());
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean checkDoubleTickReceipt(Object message) {
+        if (message instanceof Message) {
+            DoubleTickManager.DoubleTickReceipt dtr = ((Message) message).getExtension(DoubleTickManager.DoubleTickReceipt.ELEMENT, DoubleTickManager.DoubleTickReceipt.NAMESPACE);
+            if (dtr != null) {
+                Log.i(TAG, "Type Double Tick->" + ((Message) message).getStanzaId());
+                return true;
+            }
+        } else if (message instanceof Stanza) {
+            DoubleTickManager.DoubleTickReceipt dtr = ((Stanza) message).getExtension(DoubleTickManager.DoubleTickReceipt.ELEMENT, DoubleTickManager.DoubleTickReceipt.NAMESPACE);
+            if (dtr != null) {
+                Log.i(TAG, "Type Double Tick->" + ((Stanza) message).getStanzaId());
+                return true;
+            }
+        }
+        return false;
     }
 
     public void getSub() {
