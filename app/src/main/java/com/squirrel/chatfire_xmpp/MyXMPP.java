@@ -445,6 +445,8 @@ public class MyXMPP implements StanzaListener {
                 //sendReadReceipt(message);
                 //sendDoubleTick(message);
 
+                Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_PAUSE_MESSAGE);
+                context.sendBroadcast(intent);
 
                 final ChatMessage chatMessage = gson.fromJson(
                         message.getBody(), ChatMessage.class);
