@@ -194,19 +194,16 @@ public class MyXMPP implements StanzaListener {
             @Override
             public void composingNotification(String from, String packetID) {
                 Log.e(TAG, "composingNotification: from" + from);
-
             }
 
             @Override
             public void offlineNotification(String from, String packetID) {
                 Log.e(TAG, "offlineNotification: from" + from);
-
             }
 
             @Override
             public void cancelledNotification(String from, String packetID) {
                 Log.e(TAG, "cancelledNotification: from" + from);
-
             }
         });
     }
@@ -263,12 +260,20 @@ public class MyXMPP implements StanzaListener {
         }
     }
 
-    public void composingPauseMessage() {
-//        MessageEventManager.getInstanceFor(connection).sendComposingNotification();
+    public void composingMessage(String to) {
+        try {
+            MessageEventManager.getInstanceFor(connection).sendComposingNotification(to, null);
+        } catch (SmackException.NotConnectedException e) {
+            e.printStackTrace();
+        }
     }
 
-    public void composingMessage() {
-
+    public void composingPauseMessage(String to) {
+        try {
+            MessageEventManager.getInstanceFor(connection).sendCancelledNotification(to, null);
+        } catch (SmackException.NotConnectedException e) {
+            e.printStackTrace();
+        }
     }
 
     private class ChatManagerListenerImpl implements ChatManagerListener {

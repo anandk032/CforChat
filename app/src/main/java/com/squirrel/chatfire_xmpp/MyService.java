@@ -135,13 +135,11 @@ public class MyService extends Service {
             if (ACTION_XMPP_SEND_MESSAGE.equalsIgnoreCase(intent.getAction())) {
                 sendMessage(intent.getStringExtra(BUNDLE_MSG_TO), intent.getStringExtra(BUNDLE_MSG_BODY));
             } else if (ACTION_XMPP_COMPOSING_MESSAGE.equalsIgnoreCase(intent.getAction())) {
-                composingMessage();
+                composingMessage(intent.getStringExtra(BUNDLE_MSG_TO));
             } else if (ACTION_XMPP_COMPOSING_PAUSE_MESSAGE.equalsIgnoreCase(intent.getAction())) {
-                composingPauseMessage();
+                composingPauseMessage(intent.getStringExtra(BUNDLE_MSG_TO));
             }
-
         }
-
 
         private void sendMessage(String to, String body) {
             if (xmpp != null) {
@@ -150,18 +148,19 @@ public class MyService extends Service {
                 xmpp.sendMessage(chatMessage);
             }
         }
-    }
 
-    private void composingPauseMessage() {
-        if (xmpp != null) {
-            xmpp.composingPauseMessage();
+        private void composingPauseMessage(String to) {
+            Log.d(TAG, "Composing : PAUSED");
+            if (xmpp != null) {
+                xmpp.composingPauseMessage(to);
+            }
+        }
+
+        private void composingMessage(String to) {
+            Log.d(TAG, "Composing : COMPOSING");
+            if (xmpp != null) {
+                xmpp.composingMessage(to);
+            }
         }
     }
-
-    private void composingMessage() {
-        if (xmpp != null) {
-            xmpp.composingMessage();
-        }
-    }
-
 }

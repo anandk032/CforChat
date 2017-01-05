@@ -25,7 +25,7 @@
         android:paddingBottom="2dp">
 
 
-        <EditText
+        <com.squirrel.chatfire_xmpp.ChatEditText
             android:id="@+id/messageEditText"
             android:layout_width="252dp"
             android:layout_height="wrap_content"
