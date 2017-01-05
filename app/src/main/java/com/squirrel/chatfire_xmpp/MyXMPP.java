@@ -1,6 +1,7 @@
 package com.squirrel.chatfire_xmpp;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -195,6 +196,8 @@ public class MyXMPP implements StanzaListener {
             @Override
             public void composingNotification(String from, String packetID) {
                 Log.e(TAG, "composingNotification: from" + from);
+                Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_MESSAGE);
+                context.sendBroadcast(intent);
             }
 
             @Override
@@ -205,6 +208,8 @@ public class MyXMPP implements StanzaListener {
             @Override
             public void cancelledNotification(String from, String packetID) {
                 Log.e(TAG, "cancelledNotification: from" + from);
+                Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_PAUSE_MESSAGE);
+                context.sendBroadcast(intent);
             }
         });
     }
