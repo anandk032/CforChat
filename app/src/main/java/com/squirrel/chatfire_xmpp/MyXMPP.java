@@ -263,7 +263,10 @@ public class MyXMPP implements StanzaListener {
 
     public void composingMessage(String to) {
         try {
-            MessageEventManager.getInstanceFor(connection).sendComposingNotification(to, null);
+            Log.e(TAG, "composingMessage: to " + to);
+            to = to + "@"
+                    + context.getString(R.string.server);
+            MessageEventManager.getInstanceFor(connection).sendComposingNotification(to, "12121");
         } catch (SmackException.NotConnectedException e) {
             e.printStackTrace();
         }
@@ -271,6 +274,8 @@ public class MyXMPP implements StanzaListener {
 
     public void composingPauseMessage(String to) {
         try {
+            to = to + "@"
+                    + context.getString(R.string.server);
             MessageEventManager.getInstanceFor(connection).sendCancelledNotification(to, null);
         } catch (SmackException.NotConnectedException e) {
             e.printStackTrace();
@@ -303,6 +308,7 @@ public class MyXMPP implements StanzaListener {
         String to = chatMessage.receiverId + "@"
                 + context.getString(R.string.server);
         Chat chat = ChatManager.getInstanceFor(connection).createChat(to, mMessageListener);
+
 
         final Message message = new Message();
         message.setBody(body);
