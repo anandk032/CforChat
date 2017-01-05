@@ -165,4 +165,21 @@ public class MyService extends Service {
             }
         }
     }
+
+    public static class UIUpdaterBoradcast extends BroadcastReceiver {
+        public static final String ACTION_XMPP_UI_COMPOSING_MESSAGE = "com.meetwo.XMPP_UI_COMPOSING_MESSAGE";
+        public static final String ACTION_XMPP_UI_COMPOSING_PAUSE_MESSAGE = "com.meetwo.XMPP_UI_COMPOSING_PAUSE_MESSAGE";
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent == null)
+                return;
+
+            if (ACTION_XMPP_UI_COMPOSING_MESSAGE.equalsIgnoreCase(intent.getAction())) {
+                ((MainActivity) context).updateTyping(true);
+            } else if (ACTION_XMPP_UI_COMPOSING_PAUSE_MESSAGE.equalsIgnoreCase(intent.getAction())) {
+                ((MainActivity) context).updateTyping(false);
+            }
+        }
+    }
 }

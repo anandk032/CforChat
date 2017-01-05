@@ -67,6 +67,15 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+
+    public void updateTyping(boolean isTyping) {
+        if (isTyping) {
+            getSupportActionBar().setSubtitle("typing...");
+        } else {
+            getSupportActionBar().setSubtitle("online");
+        }
+    }
+
     public void switchContent(Fragment fragment, boolean isAddBackStack) {
         if (fragment == null)
             return;

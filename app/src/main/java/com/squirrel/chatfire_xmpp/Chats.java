@@ -1,6 +1,7 @@
 package com.squirrel.chatfire_xmpp;
 
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
@@ -31,6 +32,8 @@ public class Chats extends Fragment implements View.OnClickListener {
     public static String PARAM_USER = "user_name";
     private String userName;
 
+    private MyService.UIUpdaterBoradcast uiUpdaterBoradcast;
+
     public static Chats newInstance(String user) {
 
         Bundle args = new Bundle();
@@ -46,6 +49,18 @@ public class Chats extends Fragment implements View.OnClickListener {
         if (getArguments() != null) {
             user2 = getArguments().getString(PARAM_USER);
         }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        unRegister();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        register();
     }
 
     @Override
@@ -108,12 +123,27 @@ public class Chats extends Fragment implements View.OnClickListener {
         switch (v.getId()) {
             case R.id.sendMessageButton:
                 sendTextMessage(v);
-
         }
     }
 
     public boolean onBackPressed() {
         ((MainActivity) getActivity()).goBack();
         return false;
+    }
+
+
+    private void register() {
+        if (uiUpdaterBoradcast == null)
+            uiUpdaterBoradcast = new MyService.UIUpdaterBoradcast();
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_MESSAGE);
+        intentFilter.addAction(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_PAUSE_MESSAGE);
+        getActivity().registerReceiver(uiUpdaterBoradcast, intentFilter);
+    }
+
+    private void unRegister() {
+        if (uiUpdaterBoradcast != null) {
+            getActivity().unregisterReceiver(uiUpdaterBoradcast);
+        }
     }
 }
