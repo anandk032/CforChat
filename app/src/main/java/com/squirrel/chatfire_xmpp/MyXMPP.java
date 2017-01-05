@@ -113,8 +113,12 @@ public class MyXMPP implements StanzaListener {
         ReadReceiptManager.getInstanceFor(connection);
         ReadReceiptManager.getInstanceFor(connection).addReadReceivedListener(new ReadReceiptListener());
 
+        DoubleTickManager.getInstanceFor(connection);
+//        ReadReceiptManager.getInstanceFor(connection).addReadReceivedListener(new ReadReceiptListener());
+
         //add read receipt provider
         ProviderManager.addExtensionProvider(ReadReceiptManager.ReadReceipt.ELEMENT, ReadReceiptManager.ReadReceipt.NAMESPACE, new ReadReceiptManager.ReadReceiptProvider());
+        ProviderManager.addExtensionProvider(DoubleTickManager.DoubleTickReceipt.ELEMENT, DoubleTickManager.DoubleTickReceipt.NAMESPACE, new DoubleTickManager.DoubleTickProvider());
     }
 
     public String getUserId() {
@@ -179,6 +183,7 @@ public class MyXMPP implements StanzaListener {
             }
         });
     }
+
 
     private boolean login() {
         try {
@@ -326,35 +331,60 @@ public class MyXMPP implements StanzaListener {
         @Override
         public void processMessage(Chat chat, final Message message) {
             // Log.i(TAG, "processMessage FROM:" + message.getFrom() + " &TYPE:" + message.getType().toString());
-            //Log.i(TAG, "processMessage details : " + message.toXML());
+            Log.i(TAG, "processMessage details : " + message.toXML());
 
             DeliveryReceipt dr = message.getExtension(DeliveryReceipt.ELEMENT, DeliveryReceipt.NAMESPACE);
             if (dr != null) {
-                Log.i(TAG, "Type DELIVERY REPORTS");
-                return;
+                Log.i(TAG, "Type DELIVERY REPORTS " + message.getStanzaId());
+//                return;
             }
 
+            DoubleTickManager.DoubleTickReceipt dtr = message.getExtension(DoubleTickManager.DoubleTickReceipt.ELEMENT, DoubleTickManager.DoubleTickReceipt.NAMESPACE);
+            if (dtr != null) {
+                Log.i(TAG, "Type DOUBLE TICK Received " + message.getStanzaId());
+                return;
+            }
             if (message.getType() == Message.Type.chat
                     && message.getBody() != null) {
                 Log.e("MyXMPP_MESSAGE_LISTENER", "Xmpp message received: '"
                         + message.toString() + " & message.getFrom() :" + message.getFrom());
 
-                Message messageReceipt = new Message(message.getFrom());
-                message.setStanzaId(message.getStanzaId());
-                message.setFrom(getUserId());
-                messageReceipt.setType(Message.Type.normal);
-                ReadReceiptManager.ReadReceipt read = new ReadReceiptManager.ReadReceipt(message.getStanzaId());
-                messageReceipt.addExtension(read);
-                try {
-                    connection.sendStanza(messageReceipt);
-                    Log.i(TAG, "Read receipt sent");
-                } catch (SmackException.NotConnectedException e) {
-                    e.printStackTrace();
-                }
+                //sendReadReceipt(message);
+                sendDoubleTick(message);
 
                 final ChatMessage chatMessage = gson.fromJson(
                         message.getBody(), ChatMessage.class);
                 processMessage(chatMessage);
+            }
+        }
+
+        private void sendReadReceipt(Message message) {
+            Message messageReceipt = new Message(message.getFrom());
+            messageReceipt.setStanzaId(message.getStanzaId());
+            messageReceipt.setFrom(getUserId());
+            messageReceipt.setType(Message.Type.normal);
+            ReadReceiptManager.ReadReceipt read = new ReadReceiptManager.ReadReceipt(messageReceipt.getStanzaId());
+            messageReceipt.addExtension(read);
+            try {
+                connection.sendStanza(messageReceipt);
+                Log.i(TAG, "Read receipt sent");
+            } catch (SmackException.NotConnectedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        private void sendDoubleTick(Message message) {
+            Message messageDoubleTick = new Message(message.getFrom());
+            messageDoubleTick.setStanzaId(message.getStanzaId());
+            messageDoubleTick.setFrom(getUserId());
+            messageDoubleTick.setType(Message.Type.normal);
+            DoubleTickManager.DoubleTickReceipt read = new DoubleTickManager.DoubleTickReceipt(messageDoubleTick.getStanzaId());
+            messageDoubleTick.addExtension(read);
+            try {
+                connection.sendStanza(messageDoubleTick);
+                Log.i(TAG, "DoubleTick receipt sent");
+            } catch (SmackException.NotConnectedException e) {
+                e.printStackTrace();
             }
         }
 

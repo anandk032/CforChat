@@ -57,7 +57,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (id == R.id.action_log_out) {
             doUnbindService();
-            stopService(new Intent(this, MyService.class));
+            mService.stop();
             prefs.edit().clear().commit();
             finish();
             startActivity(new Intent(this, LoginActivity.class));
