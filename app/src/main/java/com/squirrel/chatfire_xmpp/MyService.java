@@ -111,6 +111,8 @@ public class MyService extends Service {
         }
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(SendMessageBroadcast.ACTION_XMPP_SEND_MESSAGE);
+        intentFilter.addAction(SendMessageBroadcast.ACTION_XMPP_COMPOSING_MESSAGE);
+        intentFilter.addAction(SendMessageBroadcast.ACTION_XMPP_COMPOSING_PAUSE_MESSAGE);
         registerReceiver(mSendMessageBroadcast, intentFilter);
     }
 
