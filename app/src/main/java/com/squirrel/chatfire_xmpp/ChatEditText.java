@@ -20,6 +20,7 @@ public class ChatEditText extends EditText {
     private Handler handler = new Handler();
     private boolean previousFocusStatus;
     private String chatId = null;
+    private long millis = 0;
 
     public ChatEditText(Context context) {
         super(context);
@@ -57,7 +58,12 @@ public class ChatEditText extends EditText {
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 if (s.length() > 0) {
                     //eventListener.userIsTyping();
-                    sendBroadcast(true);
+                    if (System.currentTimeMillis() - millis > 1500) {
+                        millis = System.currentTimeMillis();
+                        handler.removeCallbacks(runnableSend);
+                        handler.postDelayed(runnableSend, 1500);
+                        sendBroadcast(true);
+                    }
                     handler.removeCallbacks(runnable);
                     handler.postDelayed(runnable, 2000);
                 }
@@ -73,6 +79,13 @@ public class ChatEditText extends EditText {
         @Override
         public void run() {
             sendBroadcast(false);
+        }
+    };
+
+    private Runnable runnableSend = new Runnable() {
+        @Override
+        public void run() {
+            millis = 0;
         }
     };
 
