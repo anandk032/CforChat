@@ -28,6 +28,7 @@ public class MyService extends Service {
     private MyXMPP xmpp;
     private SharedPreferences prefs;
     private SendMessageBroadcast mSendMessageBroadcast;
+    private PresenceUiBoradcast presenceUiBoradcast;
     private Thread mThread;
     private Handler mTHandler;
     private boolean mActive;
@@ -113,6 +114,7 @@ public class MyService extends Service {
         intentFilter.addAction(SendMessageBroadcast.ACTION_XMPP_SEND_MESSAGE);
         intentFilter.addAction(SendMessageBroadcast.ACTION_XMPP_COMPOSING_MESSAGE);
         intentFilter.addAction(SendMessageBroadcast.ACTION_XMPP_COMPOSING_PAUSE_MESSAGE);
+        intentFilter.addAction(SendMessageBroadcast.ACTION_XMPP_PRESENCE_UPDATE);
         registerReceiver(mSendMessageBroadcast, intentFilter);
     }
 
@@ -126,6 +128,7 @@ public class MyService extends Service {
         public static final String ACTION_XMPP_SEND_MESSAGE = "com.meetwo.XMPP_SEND_MESSAGE";
         public static final String ACTION_XMPP_COMPOSING_MESSAGE = "com.meetwo.XMPP_COMPOSING_MESSAGE";
         public static final String ACTION_XMPP_COMPOSING_PAUSE_MESSAGE = "com.meetwo.XMPP_COMPOSING_PAUSE_MESSAGE";
+        public static final String ACTION_XMPP_PRESENCE_UPDATE = "com.meetwo.XMPP_PRESENCE_UPDATE";
         public static final String BUNDLE_MSG_BODY = "msg_body";
         public static final String BUNDLE_MSG_TO = "msg_to";
 
@@ -140,6 +143,8 @@ public class MyService extends Service {
                 composingMessage(intent.getStringExtra(BUNDLE_MSG_TO));
             } else if (ACTION_XMPP_COMPOSING_PAUSE_MESSAGE.equalsIgnoreCase(intent.getAction())) {
                 composingPauseMessage(intent.getStringExtra(BUNDLE_MSG_TO));
+            } else if (ACTION_XMPP_PRESENCE_UPDATE.equalsIgnoreCase(intent.getAction())) {
+                sendPresenceUpdate(intent.getStringExtra(BUNDLE_MSG_TO));
             }
         }
 
@@ -164,6 +169,13 @@ public class MyService extends Service {
                 xmpp.composingMessage(to);
             }
         }
+
+        private void sendPresenceUpdate(String to) {
+            Log.d(TAG, "Sending update soon...");
+            if (xmpp != null) {
+                xmpp.getPresenceForUser(to);
+            }
+        }
     }
 
     public static class UIUpdaterBoradcast extends BroadcastReceiver {
@@ -179,6 +191,21 @@ public class MyService extends Service {
                 ((MainActivity) context).updateTyping(true);
             } else if (ACTION_XMPP_UI_COMPOSING_PAUSE_MESSAGE.equalsIgnoreCase(intent.getAction())) {
                 ((MainActivity) context).updateTyping(false);
+            }
+        }
+    }
+
+    public static class PresenceUiBoradcast extends BroadcastReceiver {
+        public static final String ACTION_XMPP_PRESENCE_UI_UPDATE = "com.meetwo.XMPP_PRESENCE_UI_UPDATE";
+        public static final String BUNDLE_PRESENCE_MODE = "presence_mode";
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent == null)
+                return;
+
+            if (ACTION_XMPP_PRESENCE_UI_UPDATE.equalsIgnoreCase(intent.getAction())) {
+                ((MainActivity) context).updatePresence(intent.getIntExtra(BUNDLE_PRESENCE_MODE, -1));
             }
         }
     }

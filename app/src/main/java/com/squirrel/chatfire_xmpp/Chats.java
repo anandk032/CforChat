@@ -7,6 +7,7 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -22,6 +23,8 @@ import java.util.Random;
  */
 
 public class Chats extends Fragment implements View.OnClickListener {
+    private static final String TAG = "Chats";
+
     private ChatEditText msg_edittext;
     private String user1 = "vijay", user2;// chating with self
     private Random random;
@@ -33,9 +36,9 @@ public class Chats extends Fragment implements View.OnClickListener {
     private String userName;
 
     private MyService.UIUpdaterBoradcast uiUpdaterBoradcast;
+    private MyService.PresenceUiBoradcast presenceUiBoradcast;
 
     public static Chats newInstance(String user) {
-
         Bundle args = new Bundle();
         args.putString(PARAM_USER, user);
         Chats fragment = new Chats();
@@ -61,6 +64,14 @@ public class Chats extends Fragment implements View.OnClickListener {
     public void onResume() {
         super.onResume();
         register();
+        sendForPresenceUpdate();
+    }
+
+    private void sendForPresenceUpdate() {
+        Intent intent = new Intent(MyService.SendMessageBroadcast.ACTION_XMPP_PRESENCE_UPDATE);
+        intent.putExtra(MyService.SendMessageBroadcast.BUNDLE_MSG_TO, user2);
+        getActivity().sendBroadcast(intent);
+        Log.i(TAG, "sendForPresenceUpdate");
     }
 
     @Override
@@ -91,6 +102,7 @@ public class Chats extends Fragment implements View.OnClickListener {
         ((MainActivity) getActivity()).getSupportActionBar().setTitle(user2);
         return view;
     }
+
 
     @Override
     public void onSaveInstanceState(Bundle outState) {
@@ -141,11 +153,20 @@ public class Chats extends Fragment implements View.OnClickListener {
         intentFilter.addAction(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_MESSAGE);
         intentFilter.addAction(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_PAUSE_MESSAGE);
         getActivity().registerReceiver(uiUpdaterBoradcast, intentFilter);
+
+        if (presenceUiBoradcast == null)
+            presenceUiBoradcast = new MyService.PresenceUiBoradcast();
+        IntentFilter intentFilter1 = new IntentFilter();
+        intentFilter1.addAction(MyService.PresenceUiBoradcast.ACTION_XMPP_PRESENCE_UI_UPDATE);
+        getActivity().registerReceiver(presenceUiBoradcast, intentFilter1);
     }
 
     private void unRegister() {
         if (uiUpdaterBoradcast != null) {
             getActivity().unregisterReceiver(uiUpdaterBoradcast);
+        }
+        if (presenceUiBoradcast != null) {
+            getActivity().unregisterReceiver(presenceUiBoradcast);
         }
     }
 }

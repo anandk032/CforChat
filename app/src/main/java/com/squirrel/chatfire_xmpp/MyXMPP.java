@@ -29,14 +29,10 @@ import org.jivesoftware.smack.roster.Roster;
 import org.jivesoftware.smack.roster.packet.RosterPacket;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
-import org.jivesoftware.smackx.chatstates.ChatState;
-import org.jivesoftware.smackx.chatstates.ChatStateListener;
-import org.jivesoftware.smackx.chatstates.ChatStateManager;
 import org.jivesoftware.smackx.iqlast.LastActivityManager;
 import org.jivesoftware.smackx.iqlast.packet.LastActivity;
 import org.jivesoftware.smackx.pubsub.provider.SubscriptionProvider;
 import org.jivesoftware.smackx.receipts.DeliveryReceipt;
-import org.jivesoftware.smackx.receipts.ReceiptReceivedListener;
 import org.jivesoftware.smackx.search.UserSearchManager;
 import org.jivesoftware.smackx.xevent.DefaultMessageEventRequestListener;
 import org.jivesoftware.smackx.xevent.MessageEventManager;
@@ -63,7 +59,7 @@ public class MyXMPP implements StanzaListener {
     private static String loginUser;
     private static String passwordUser;
     private Gson gson;
-    private MyService context;
+    private MyService mContext;
     private static MyXMPP instance = null;
 
     private Chat Mychat;
@@ -88,7 +84,7 @@ public class MyXMPP implements StanzaListener {
         this.serverAddress = serverAdress;
         loginUser = logiUser;
         passwordUser = passwordser;
-        this.context = context;
+        this.mContext = context;
         init();
     }
 
@@ -103,7 +99,7 @@ public class MyXMPP implements StanzaListener {
 
     private void init() {
         gson = new Gson();
-        mMessageListener = new MMessageListener(context);
+        mMessageListener = new MMessageListener(mContext);
         mChatManagerListener = new ChatManagerListenerImpl();
         initialiseConnection();
     }
@@ -201,7 +197,7 @@ public class MyXMPP implements StanzaListener {
             public void composingNotification(String from, String packetID) {
                 Log.e(TAG, "composingNotification: from" + from);
                 Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_MESSAGE);
-                context.sendBroadcast(intent);
+                mContext.sendBroadcast(intent);
             }
 
             @Override
@@ -213,7 +209,7 @@ public class MyXMPP implements StanzaListener {
             public void cancelledNotification(String from, String packetID) {
                 Log.e(TAG, "cancelledNotification: from" + from);
                 Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_PAUSE_MESSAGE);
-                context.sendBroadcast(intent);
+                mContext.sendBroadcast(intent);
             }
         });
     }
@@ -273,8 +269,9 @@ public class MyXMPP implements StanzaListener {
     public void composingMessage(String to) {
         try {
             Log.e(TAG, "composingMessage: to " + to);
-            to = to + "@"
-                    + context.getString(R.string.server);
+            if (!to.contains("@"))
+                to = to + "@"
+                        + mContext.getString(R.string.server);
             MessageEventManager.getInstanceFor(connection).sendComposingNotification(to, String.valueOf(System.currentTimeMillis()));
         } catch (SmackException.NotConnectedException e) {
             e.printStackTrace();
@@ -283,12 +280,20 @@ public class MyXMPP implements StanzaListener {
 
     public void composingPauseMessage(String to) {
         try {
-            to = to + "@"
-                    + context.getString(R.string.server);
+            if (!to.contains("@"))
+                to = to + "@"
+                        + mContext.getString(R.string.server);
             MessageEventManager.getInstanceFor(connection).sendCancelledNotification(to, String.valueOf(System.currentTimeMillis()));
         } catch (SmackException.NotConnectedException e) {
             e.printStackTrace();
         }
+    }
+
+    public void getPresenceForUser(String to) {
+        if (!to.contains("@"))
+            to = to + "@"
+                    + mContext.getString(R.string.server);
+        getPresence(to);
     }
 
     private class ChatManagerListenerImpl implements ChatManagerListener {
@@ -300,22 +305,11 @@ public class MyXMPP implements StanzaListener {
         }
     }
 
-    private class ReadReceiptListener implements ReceiptReceivedListener {
-        private static final String TAG = "ReadReceiptListener";
-
-        @Override
-        public void onReceiptReceived(String fromJid, String toJid, String receiptId, Stanza receipt) {
-            Log.i(TAG, "Read receipt from:" + fromJid + " & to:" + toJid + " &receiptId:" + receiptId + " &receipt:" + receipt);
-            Log.i(TAG, "Message Read Successfully");
-        }
-    }
-
-    void sendMessage(ChatMessage chatMessage) {
-
+    public void sendMessage(ChatMessage chatMessage) {
         String body = gson.toJson(chatMessage);
 
         String to = chatMessage.receiverId + "@"
-                + context.getString(R.string.server);
+                + mContext.getString(R.string.server);
         Chat chat = ChatManager.getInstanceFor(connection).createChat(to, mMessageListener);
 
         final Message message = new Message();
@@ -325,9 +319,7 @@ public class MyXMPP implements StanzaListener {
         message.setStanzaId(chatMessage.msgId);
         message.setType(Message.Type.chat);
         try {
-            //MessageEventManager.addNotificationsRequests(message, true, true, true, true);
-            ChatStateManager.getInstance(connection).setCurrentState(ChatState.composing, chat);
-
+            MessageEventManager.addNotificationsRequests(message, true, true, true, true);
             chat.sendMessage(message);
             Log.i(TAG, "Chat message sent msgId:" + message.getStanzaId());
         } catch (SmackException.NotConnectedException e) {
@@ -398,12 +390,13 @@ public class MyXMPP implements StanzaListener {
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 @Override
                 public void run() {
-                    Toast.makeText(context,
+                    Toast.makeText(mContext,
                             "Authenticated",
                             Toast.LENGTH_LONG).show();
                 }
             });
 
+            Roster.setDefaultSubscriptionMode(Roster.SubscriptionMode.accept_all);
 
             ChatManager.getInstanceFor(connection).addChatListener(
                     mChatManagerListener);
@@ -423,7 +416,7 @@ public class MyXMPP implements StanzaListener {
         }
     }
 
-    private class MMessageListener implements ChatMessageListener, ChatStateListener {
+    private class MMessageListener implements ChatMessageListener {
         private static final String TAG = "MMessageListener";
 
         MMessageListener(Context contxt) {
@@ -453,7 +446,7 @@ public class MyXMPP implements StanzaListener {
                 //sendDoubleTick(message);
 
                 Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_PAUSE_MESSAGE);
-                context.sendBroadcast(intent);
+                mContext.sendBroadcast(intent);
 
                 final ChatMessage chatMessage = gson.fromJson(
                         message.getBody(), ChatMessage.class);
@@ -500,27 +493,6 @@ public class MyXMPP implements StanzaListener {
                     Chats.chatAdapter.notifyDataSetChanged();
                 }
             });
-        }
-
-        @Override
-        public void stateChanged(Chat chat, ChatState state) {
-            switch (state) {
-                case active:
-                    Log.i("state", "active");
-                    break;
-                case composing:
-                    Log.i("state", "composing");
-                    break;
-                case paused:
-                    Log.i("state", "paused");
-                    break;
-                case inactive:
-                    Log.i("state", "inactive");
-                    break;
-                case gone:
-                    Log.i("state", "gone");
-                    break;
-            }
         }
     }
 
@@ -592,15 +564,29 @@ public class MyXMPP implements StanzaListener {
         } catch (SmackException.NotConnectedException e) {
             e.printStackTrace();
         }
-
-
-        Presence presence = Roster.getInstanceFor(connection).getPresence("dharmesh@ip-172-31-53-77.ec2.internal");
-        Log.i(TAG, "presence :" + retrieveState_mode(presence.getMode(), presence.isAvailable()));
     }
 
-    public static int retrieveState_mode(Presence.Mode userMode, boolean isOnline) {
+    public void getPresence(String jId) {
+        if (mContext == null) return;
+
+        if (!isConnected()) {
+            sendPresenceBroadcast(-1);
+            return;
+        }
+
+        try {
+            Roster roster = Roster.getInstanceFor(connection);
+            Presence presence = roster.getPresence(jId);
+            int mode = retrieveState_mode(presence.getMode(), presence.isAvailable());
+            sendPresenceBroadcast(mode);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static int retrieveState_mode(Presence.Mode userMode, boolean isOnline) {
         int userState = 0;
-        /** 0 for offline, 1 for online, 2 for away,3 for busy*/
+        /** -1 for error, 0 for offline, 1 for online, 2 for away, 3 for busy*/
         if (userMode == Presence.Mode.dnd) {
             userState = 3;
         } else if (userMode == Presence.Mode.away || userMode == Presence.Mode.xa) {
@@ -609,8 +595,17 @@ public class MyXMPP implements StanzaListener {
             userState = 1;
         } else {
             //offline
+            userState = 0;
         }
         return userState;
+    }
+
+    private void sendPresenceBroadcast(int presenceMode) {
+        Log.i(TAG, "Sending reply on presence mode:" + presenceMode);
+        if (mContext == null) return;
+        Intent intent = new Intent(MyService.PresenceUiBoradcast.ACTION_XMPP_PRESENCE_UI_UPDATE);
+        intent.putExtra(MyService.PresenceUiBoradcast.BUNDLE_PRESENCE_MODE, presenceMode);
+        mContext.sendBroadcast(intent);
     }
 
 

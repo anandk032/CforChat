@@ -76,6 +76,17 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public void updatePresence(int presenceMode) {
+        Log.i(TAG, "Presence Mode:" + presenceMode);
+        if (presenceMode == 1) {
+            getSupportActionBar().setSubtitle("online");
+        } else if (presenceMode == 2 || presenceMode == 3) {
+            getSupportActionBar().setSubtitle("away");
+        } else if (presenceMode == 0 || presenceMode == -1) {
+            getSupportActionBar().setSubtitle("");
+        }
+    }
+
     public void switchContent(Fragment fragment, boolean isAddBackStack) {
         if (fragment == null)
             return;
