@@ -2,6 +2,7 @@ package com.squirrel.chatfire_xmpp;
 
 import android.content.Context;
 import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -26,6 +27,8 @@ import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.packet.Stanza;
 import org.jivesoftware.smack.provider.ProviderManager;
 import org.jivesoftware.smack.roster.Roster;
+import org.jivesoftware.smack.roster.RosterListener;
+import org.jivesoftware.smack.roster.RosterLoadedListener;
 import org.jivesoftware.smack.roster.packet.RosterPacket;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
@@ -41,12 +44,13 @@ import org.jivesoftware.smackx.xevent.packet.MessageEvent;
 import org.jivesoftware.smackx.xevent.provider.MessageEventProvider;
 
 import java.io.IOException;
+import java.util.Collection;
 
 /**
  * Created by Dharmesh on 12/28/2016.
  */
 
-public class MyXMPP implements StanzaListener {
+public class MyXMPP implements StanzaListener, RosterLoadedListener {
     private static final String TAG = "MyXMPP";
 
     private static boolean connected = false;
@@ -67,6 +71,7 @@ public class MyXMPP implements StanzaListener {
     private ChatManagerListenerImpl mChatManagerListener;
     private MMessageListener mMessageListener;
     private MessageEventManager messageEventManager;
+    private MyRosterEventListener myRosterEventListener;
 
     private static final String[] list = new String[]{"dharmesh@ip-172-31-53-77.ec2.internal", "vijay@ip-172-31-53-77.ec2.internal", "anand@ip-172-31-53-77.ec2.internal", "tapan@ip-172-31-53-77.ec2.internal"};
 
@@ -77,7 +82,6 @@ public class MyXMPP implements StanzaListener {
             // problem loading reconnection manager
         }
     }
-
 
     private MyXMPP(MyService context, String serverAdress, String logiUser,
                    String passwordser) {
@@ -101,6 +105,7 @@ public class MyXMPP implements StanzaListener {
         gson = new Gson();
         mMessageListener = new MMessageListener(mContext);
         mChatManagerListener = new ChatManagerListenerImpl();
+        myRosterEventListener = new MyRosterEventListener();
         initialiseConnection();
     }
 
@@ -121,6 +126,8 @@ public class MyXMPP implements StanzaListener {
         connection.addConnectionListener(connectionListener);
         connection.addStanzaAcknowledgedListener(this);
 
+        //roster
+        Roster.setDefaultSubscriptionMode(Roster.SubscriptionMode.accept_all);
 
         ReadReceiptManager.getInstanceFor(connection);
         //ReadReceiptManager.getInstanceFor(connection).addReadReceivedListener(new ReadReceiptListener());
@@ -235,8 +242,16 @@ public class MyXMPP implements StanzaListener {
 
     private boolean login() {
         try {
-            connection.login(loginUser, passwordUser);
-            Log.i(TAG, "Logged in successfully");
+            if (connection.isAuthenticated()) {
+                Log.i(TAG, "Authorised already, no need to logged in");
+            } else {
+                connection.login(loginUser, passwordUser);
+                Log.i(TAG, "Logged in successfully");
+            }
+
+            //Presence presence = new Presence(Presence.Type.unavailable);
+            //presence.setStatus("Gone fishing");
+            //connection.sendStanza(presence);
             return true;
         } catch (SmackException.AlreadyLoggedInException e) {
             return true;
@@ -295,6 +310,7 @@ public class MyXMPP implements StanzaListener {
                     + mContext.getString(R.string.server);
         getPresence(to);
     }
+
 
     private class ChatManagerListenerImpl implements ChatManagerListener {
         @Override
@@ -396,7 +412,8 @@ public class MyXMPP implements StanzaListener {
                 }
             });
 
-            Roster.setDefaultSubscriptionMode(Roster.SubscriptionMode.accept_all);
+            Roster roster = Roster.getInstanceFor(connection);
+            roster.addRosterLoadedListener(MyXMPP.this);
 
             ChatManager.getInstanceFor(connection).addChatListener(
                     mChatManagerListener);
@@ -415,6 +432,7 @@ public class MyXMPP implements StanzaListener {
             }).start();
         }
     }
+
 
     private class MMessageListener implements ChatMessageListener {
         private static final String TAG = "MMessageListener";
@@ -566,32 +584,49 @@ public class MyXMPP implements StanzaListener {
         }
     }
 
-    public void getPresence(String jId) {
+    public void getPresence(final String jId) {
         if (mContext == null) return;
 
         if (!isConnected()) {
-            sendPresenceBroadcast(-1);
+            sendPresenceBroadcast(-1, jId);
             return;
         }
 
-        try {
-            Roster roster = Roster.getInstanceFor(connection);
-            Presence presence = roster.getPresence(jId);
-            int mode = retrieveState_mode(presence.getMode(), presence.isAvailable());
-            sendPresenceBroadcast(mode);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        new AsyncTask<Void, Void, Integer>() {
+            @Override
+            protected Integer doInBackground(Void... params) {
+                if (connection != null && isConnected()) {
+                    try {
+                        Roster roster = Roster.getInstanceFor(connection);
+                        roster.reloadAndWait();
+                        roster.addRosterListener(myRosterEventListener);
+                        Presence presence = roster.getPresence(jId);
+                        Log.i(TAG, "away?" + presence.isAway() + " & avail:" + presence.isAvailable() + " & mode: " + presence.getMode().toString());
+                        return retrieveState_mode(presence);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+                return -1;
+            }
+
+            @Override
+            protected void onPostExecute(Integer mode) {
+                super.onPostExecute(mode);
+                sendPresenceBroadcast(mode, jId);
+            }
+        }.execute();
     }
 
-    private static int retrieveState_mode(Presence.Mode userMode, boolean isOnline) {
+    private static int retrieveState_mode(final Presence presence) {
+        Log.i(TAG, "presence.isAvailable():" + presence.isAvailable());
         int userState = 0;
         /** -1 for error, 0 for offline, 1 for online, 2 for away, 3 for busy*/
-        if (userMode == Presence.Mode.dnd) {
+        if (presence.getMode() == Presence.Mode.dnd) {
             userState = 3;
-        } else if (userMode == Presence.Mode.away || userMode == Presence.Mode.xa) {
+        } else if (presence.getMode() == Presence.Mode.away || presence.getMode() == Presence.Mode.xa) {
             userState = 2;
-        } else if (isOnline) {
+        } else if (presence.isAvailable()) {
             userState = 1;
         } else {
             //offline
@@ -600,12 +635,39 @@ public class MyXMPP implements StanzaListener {
         return userState;
     }
 
-    private void sendPresenceBroadcast(int presenceMode) {
+    private void sendPresenceBroadcast(int presenceMode, String to) {
         Log.i(TAG, "Sending reply on presence mode:" + presenceMode);
         if (mContext == null) return;
         Intent intent = new Intent(MyService.PresenceUiBoradcast.ACTION_XMPP_PRESENCE_UI_UPDATE);
         intent.putExtra(MyService.PresenceUiBoradcast.BUNDLE_PRESENCE_MODE, presenceMode);
+        intent.putExtra(MyService.SendMessageBroadcast.BUNDLE_MSG_TO, to);
         mContext.sendBroadcast(intent);
+    }
+
+    @Override
+    public void onRosterLoaded(Roster roster) {
+        //new roster loaded
+        roster.addRosterListener(myRosterEventListener);
+    }
+
+    private class MyRosterEventListener implements RosterListener {
+        @Override
+        public void entriesAdded(Collection<String> addresses) {
+        }
+
+        @Override
+        public void entriesUpdated(Collection<String> addresses) {
+        }
+
+        @Override
+        public void entriesDeleted(Collection<String> addresses) {
+        }
+
+        @Override
+        public void presenceChanged(Presence presence) {
+            Log.i(TAG, "MyRosterEventListener: PRESENCE :" + presence.getFrom() + " & status:" + retrieveState_mode(presence));
+            sendPresenceBroadcast(retrieveState_mode(presence), presence.getFrom());
+        }
     }
 
 
@@ -648,7 +710,5 @@ public class MyXMPP implements StanzaListener {
 //            RosterFragment.userAdapter.addData(list);
 //        }
 //    }
-
-
 }
 

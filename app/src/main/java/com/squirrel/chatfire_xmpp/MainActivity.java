@@ -1,7 +1,6 @@
 package com.squirrel.chatfire_xmpp;
 
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
@@ -100,8 +99,8 @@ public class MainActivity extends AppCompatActivity {
     void doBindService() {
         Log.e(TAG, "doBindService: call");
         startService(new Intent(this, MyService.class));
-        bindService(new Intent(this, MyService.class), mConnection,
-                Context.BIND_AUTO_CREATE);
+//        bindService(new Intent(this, MyService.class), mConnection,
+//                Context.BIND_AUTO_CREATE);
     }
 
     void doUnbindService() {
