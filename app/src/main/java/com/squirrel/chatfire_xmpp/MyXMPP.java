@@ -25,11 +25,15 @@ import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.packet.Stanza;
 import org.jivesoftware.smack.provider.ProviderManager;
+import org.jivesoftware.smack.roster.Roster;
 import org.jivesoftware.smack.roster.packet.RosterPacket;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
 import org.jivesoftware.smackx.chatstates.ChatState;
 import org.jivesoftware.smackx.chatstates.ChatStateListener;
+import org.jivesoftware.smackx.chatstates.ChatStateManager;
+import org.jivesoftware.smackx.iqlast.LastActivityManager;
+import org.jivesoftware.smackx.iqlast.packet.LastActivity;
 import org.jivesoftware.smackx.pubsub.provider.SubscriptionProvider;
 import org.jivesoftware.smackx.receipts.DeliveryReceipt;
 import org.jivesoftware.smackx.receipts.ReceiptReceivedListener;
@@ -314,7 +318,6 @@ public class MyXMPP implements StanzaListener {
                 + context.getString(R.string.server);
         Chat chat = ChatManager.getInstanceFor(connection).createChat(to, mMessageListener);
 
-
         final Message message = new Message();
         message.setBody(body);
         message.setFrom(getUserId());
@@ -322,7 +325,9 @@ public class MyXMPP implements StanzaListener {
         message.setStanzaId(chatMessage.msgId);
         message.setType(Message.Type.chat);
         try {
-            MessageEventManager.addNotificationsRequests(message, true, true, true, true);
+            //MessageEventManager.addNotificationsRequests(message, true, true, true, true);
+            ChatStateManager.getInstance(connection).setCurrentState(ChatState.composing, chat);
+
             chat.sendMessage(message);
             Log.i(TAG, "Chat message sent msgId:" + message.getStanzaId());
         } catch (SmackException.NotConnectedException e) {
@@ -387,6 +392,8 @@ public class MyXMPP implements StanzaListener {
         public void authenticated(XMPPConnection arg0, boolean arg1) {
             Log.d(TAG, "Authenticated!");
             loggedin = true;
+
+            test();
 
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 @Override
@@ -572,6 +579,38 @@ public class MyXMPP implements StanzaListener {
             public void processPacket(Stanza packet) throws SmackException.NotConnectedException {
             }
         });
+    }
+
+    private void test() {
+        try {
+            LastActivity last = LastActivityManager.getInstanceFor(connection).getLastActivity("dharmesh@ip-172-31-53-77.ec2.internal");
+            Log.i(TAG, "Last Activity :" + last.getIdleTime());
+        } catch (SmackException.NoResponseException e) {
+            e.printStackTrace();
+        } catch (XMPPException.XMPPErrorException e) {
+            e.printStackTrace();
+        } catch (SmackException.NotConnectedException e) {
+            e.printStackTrace();
+        }
+
+
+        Presence presence = Roster.getInstanceFor(connection).getPresence("dharmesh@ip-172-31-53-77.ec2.internal");
+        Log.i(TAG, "presence :" + retrieveState_mode(presence.getMode(), presence.isAvailable()));
+    }
+
+    public static int retrieveState_mode(Presence.Mode userMode, boolean isOnline) {
+        int userState = 0;
+        /** 0 for offline, 1 for online, 2 for away,3 for busy*/
+        if (userMode == Presence.Mode.dnd) {
+            userState = 3;
+        } else if (userMode == Presence.Mode.away || userMode == Presence.Mode.xa) {
+            userState = 2;
+        } else if (isOnline) {
+            userState = 1;
+        } else {
+            //offline
+        }
+        return userState;
     }
 
 
