@@ -175,7 +175,7 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
                 connection.connect();
             if (!login()) return;
 
-            ReconnectionManager reconnectionManager = ReconnectionManager.getInstanceFor(connection);
+            MyReconnectionManager reconnectionManager = MyReconnectionManager.getInstanceFor(connection);
             ReconnectionManager.setEnabledPerDefault(true);
             reconnectionManager.enableAutomaticReconnection();
             reconnectionManager.setReconnectionPolicy(ReconnectionManager.ReconnectionPolicy.FIXED_DELAY);
