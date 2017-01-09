@@ -217,7 +217,7 @@ public class MyService extends Service {
                 return;
 
             if (ACTION_XMPP_PRESENCE_UI_UPDATE.equalsIgnoreCase(intent.getAction())) {
-                ((MainActivity) context).updatePresence(intent.getIntExtra(BUNDLE_PRESENCE_MODE, -1), intent.getLongExtra(BUNDLE_PRESENCE_MODE, -1));
+                ((MainActivity) context).updatePresence(intent.getIntExtra(BUNDLE_PRESENCE_MODE, -1), intent.getLongExtra(BUNDLE_LAST_SEEN, -1));
             }
         }
     }

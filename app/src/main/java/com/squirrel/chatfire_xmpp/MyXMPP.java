@@ -752,7 +752,7 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
             Log.i(TAG, "MyRosterEventListener: PRESENCE :" + presence.getFrom() + " & status:" + retrieveState_mode(presence));
 
             if (presence.getFrom().equals(CURRENT_CHAT_JID)) {
-                sendPresenceBroadcast(retrieveState_mode(presence), -1, presence.getFrom());
+                sendPresenceBroadcast(retrieveState_mode(presence), -1L, presence.getFrom());
             }
         }
     }
