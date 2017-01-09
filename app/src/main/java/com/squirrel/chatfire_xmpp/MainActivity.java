@@ -99,7 +99,7 @@ public class MainActivity extends AppCompatActivity {
         if (presenceMode == 1) {
             getSupportActionBar().setSubtitle("online");
         } else if (presenceMode == 2 || presenceMode == 3) {
-            getSupportActionBar().setSubtitle("away " + seconds);
+            getSupportActionBar().setSubtitle("");
         } else if (presenceMode == 0 || presenceMode == -1) {
             getSupportActionBar().setSubtitle("");
         }

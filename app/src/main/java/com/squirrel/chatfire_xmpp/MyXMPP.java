@@ -331,11 +331,15 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
         } else if (presence == 4) {
             //offline/unavailable
             type = Presence.Type.unavailable;
-            mode = Presence.Mode.away;
+            mode = Presence.Mode.available;
         } else if (presence == 5) {
             //logout
-            type = Presence.Type.unavailable;
-            mode = Presence.Mode.away;
+            try {
+                connection.disconnect(new Presence(Presence.Type.unavailable, null, PRIORITY, Presence.Mode.away));
+            } catch (SmackException.NotConnectedException e) {
+                e.printStackTrace();
+            }
+            return;
         } else {
             //logout
             type = Presence.Type.unavailable;
@@ -349,14 +353,6 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
             connection.sendStanza(presenceStanza);
         } catch (SmackException.NotConnectedException e) {
             e.printStackTrace();
-        }
-
-        if (presence == 5) {
-            try {
-                connection.disconnect(new Presence(Presence.Type.unavailable, null, PRIORITY, Presence.Mode.away));
-            } catch (SmackException.NotConnectedException e) {
-                e.printStackTrace();
-            }
         }
     }
 
@@ -505,9 +501,6 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
                     && message.getBody() != null) {
                 Log.e("MyXMPP_MESSAGE_LISTENER", "Xmpp message received: '"
                         + message.toString() + " & message.getFrom() :" + message.getFrom());
-
-                //sendReadReceipt(message);
-                //sendDoubleTick(message);
 
                 Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_PAUSE_MESSAGE);
                 mContext.sendBroadcast(intent);
@@ -658,7 +651,7 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
 
                         long seconds = -1;
                         if (state != 1) {
-                            seconds = getLastSeenInSeconds(jId);
+                            //seconds = getLastSeenInSeconds(jId);
                         }
                         return new Object[]{state, seconds};
                     } catch (Exception e) {
@@ -677,14 +670,14 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
     }
 
     private static int retrieveState_mode(final Presence presence) {
-        Log.i(TAG, "presence.isAvailable():" + presence.isAvailable());
+        //Log.i(TAG, "presence.isAvailable():" + presence.isAvailable());
         int userState = 0;
         /** -1 for error, 0 for offline, 1 for online, 2 for away, 3 for busy, 4 for unavailable*/
-        if (presence.getMode() == Presence.Mode.dnd) {
+        if (presence.isAvailable() && presence.getMode() == Presence.Mode.dnd) {
             userState = 3;
-        } else if (presence.getMode() == Presence.Mode.away || presence.getMode() == Presence.Mode.xa) {
+        } else if (presence.isAvailable() && (presence.getMode() == Presence.Mode.away || presence.getMode() == Presence.Mode.xa)) {
             userState = 2;
-        } else if (presence.isAvailable()) {
+        } else if (presence.isAvailable() && presence.getMode() == Presence.Mode.available) {
             userState = 1;
         } else {
             //offline
@@ -749,10 +742,16 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
 
         @Override
         public void presenceChanged(Presence presence) {
-            Log.i(TAG, "MyRosterEventListener: PRESENCE :" + presence.getFrom() + " & status:" + retrieveState_mode(presence));
+            //Log.i(TAG, "MyRosterEventListener: PRESENCE :" + presence.getFrom() + " & status:" + retrieveState_mode(presence));
+            Log.i(TAG, "PRESENCE:" + presence.toXML());
 
-            if (presence.getFrom().equals(CURRENT_CHAT_JID)) {
-                sendPresenceBroadcast(retrieveState_mode(presence), -1L, presence.getFrom());
+            String from = presence.getFrom();
+            if (from.contains("/")) {
+                from = from.split("/")[0];
+            }
+
+            if (from.equals(CURRENT_CHAT_JID)) {
+                sendPresenceBroadcast(retrieveState_mode(presence), -1L, from);
             }
         }
     }
