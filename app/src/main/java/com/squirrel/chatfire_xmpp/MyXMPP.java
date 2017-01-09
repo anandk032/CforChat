@@ -118,6 +118,8 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
         config.setPort(5222);
         config.setDebuggerEnabled(false);
         config.setResource("Meetwo");
+        config.setSendPresence(false);
+        config.setUsernameAndPassword(loginUser, passwordUser);
         XMPPTCPConnection.setUseStreamManagementResumptiodDefault(true);
         XMPPTCPConnection.setUseStreamManagementDefault(true);
         connection = new XMPPTCPConnection(config.build());
@@ -242,12 +244,12 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
 
     private boolean login() {
         try {
-            if (connection.isAuthenticated()) {
-                Log.i(TAG, "Authorised already, no need to logged in");
-            } else {
-                connection.login(loginUser, passwordUser);
+//            if (connection.isAuthenticated()) {
+//                Log.i(TAG, "Authorised already, no need to logged in");
+//            } else {
+                connection.login();
                 Log.i(TAG, "Logged in successfully");
-            }
+//            }
 
             //Presence presence = new Presence(Presence.Type.unavailable);
             //presence.setStatus("Gone fishing");
@@ -400,8 +402,6 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
         public void authenticated(XMPPConnection arg0, boolean arg1) {
             Log.d(TAG, "Authenticated!");
             loggedin = true;
-
-            test();
 
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 @Override
@@ -571,9 +571,9 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
         });
     }
 
-    private void test() {
+    private void test(String jId) {
         try {
-            LastActivity last = LastActivityManager.getInstanceFor(connection).getLastActivity("dharmesh@ip-172-31-53-77.ec2.internal");
+            LastActivity last = LastActivityManager.getInstanceFor(connection).getLastActivity(jId);
             Log.i(TAG, "Last Activity :" + last.getIdleTime());
         } catch (SmackException.NoResponseException e) {
             e.printStackTrace();
@@ -614,6 +614,7 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
             protected void onPostExecute(Integer mode) {
                 super.onPostExecute(mode);
                 sendPresenceBroadcast(mode, jId);
+                test(jId);
             }
         }.execute();
     }
