@@ -28,7 +28,6 @@ public class MyService extends Service {
     private MyXMPP xmpp;
     private SharedPreferences prefs;
     private SendMessageBroadcast mSendMessageBroadcast;
-    private PresenceUiBoradcast presenceUiBoradcast;
     private Thread mThread;
     private Handler mTHandler;
     private boolean mActive;
@@ -115,6 +114,7 @@ public class MyService extends Service {
         intentFilter.addAction(SendMessageBroadcast.ACTION_XMPP_COMPOSING_MESSAGE);
         intentFilter.addAction(SendMessageBroadcast.ACTION_XMPP_COMPOSING_PAUSE_MESSAGE);
         intentFilter.addAction(SendMessageBroadcast.ACTION_XMPP_PRESENCE_UPDATE);
+        intentFilter.addAction(SendMessageBroadcast.ACTION_XMPP_SET_PRESENCE_MODE);
         registerReceiver(mSendMessageBroadcast, intentFilter);
     }
 
@@ -129,8 +129,10 @@ public class MyService extends Service {
         public static final String ACTION_XMPP_COMPOSING_MESSAGE = "com.meetwo.XMPP_COMPOSING_MESSAGE";
         public static final String ACTION_XMPP_COMPOSING_PAUSE_MESSAGE = "com.meetwo.XMPP_COMPOSING_PAUSE_MESSAGE";
         public static final String ACTION_XMPP_PRESENCE_UPDATE = "com.meetwo.XMPP_PRESENCE_UPDATE";
+        public static final String ACTION_XMPP_SET_PRESENCE_MODE = "com.meetwo.XMPP_SET_PRESENCE_MODE";
         public static final String BUNDLE_MSG_BODY = "msg_body";
         public static final String BUNDLE_MSG_TO = "msg_to";
+        public static final String BUNDLE_PRESENCE_MODE = "presence_mode";
 
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -145,6 +147,8 @@ public class MyService extends Service {
                 composingPauseMessage(intent.getStringExtra(BUNDLE_MSG_TO));
             } else if (ACTION_XMPP_PRESENCE_UPDATE.equalsIgnoreCase(intent.getAction())) {
                 sendPresenceUpdate(intent.getStringExtra(BUNDLE_MSG_TO));
+            } else if (ACTION_XMPP_SET_PRESENCE_MODE.equalsIgnoreCase(intent.getAction())) {
+                setPresence(intent.getIntExtra(BUNDLE_PRESENCE_MODE, 0));
             }
         }
 
@@ -174,6 +178,13 @@ public class MyService extends Service {
             Log.d(TAG, "Sending update soon...");
             if (xmpp != null) {
                 xmpp.getPresenceForUser(to);
+            }
+        }
+
+        private void setPresence(int presence) {
+            Log.e(TAG, "setPresence: " + presence);
+            if (xmpp != null) {
+                xmpp.setPresence(presence);
             }
         }
     }

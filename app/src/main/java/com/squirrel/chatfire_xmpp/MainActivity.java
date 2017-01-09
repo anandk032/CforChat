@@ -63,6 +63,25 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }
 
+        if (id == R.id.available) {
+            Intent intent = new Intent(MyService.SendMessageBroadcast.ACTION_XMPP_SET_PRESENCE_MODE);
+            intent.putExtra(MyService.SendMessageBroadcast.BUNDLE_PRESENCE_MODE, 1);
+            sendBroadcast(intent);
+            return true;
+        }
+        if (id == R.id.unavailable) {
+            Intent intent = new Intent(MyService.SendMessageBroadcast.ACTION_XMPP_SET_PRESENCE_MODE);
+            intent.putExtra(MyService.SendMessageBroadcast.BUNDLE_PRESENCE_MODE, 4);
+            sendBroadcast(intent);
+            return true;
+        }
+        if (id == R.id.away) {
+            Intent intent = new Intent(MyService.SendMessageBroadcast.ACTION_XMPP_SET_PRESENCE_MODE);
+            intent.putExtra(MyService.SendMessageBroadcast.BUNDLE_PRESENCE_MODE, 2);
+            sendBroadcast(intent);
+            return true;
+        }
+
         return super.onOptionsItemSelected(item);
     }
 

@@ -53,6 +53,8 @@ import java.util.Collection;
 public class MyXMPP implements StanzaListener, RosterLoadedListener {
     private static final String TAG = "MyXMPP";
 
+    private static final int PRIORITY = 24;
+
     private static boolean connected = false;
     private boolean loggedin = false;
     private static boolean isconnecting = false;
@@ -247,8 +249,8 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
 //            if (connection.isAuthenticated()) {
 //                Log.i(TAG, "Authorised already, no need to logged in");
 //            } else {
-                connection.login();
-                Log.i(TAG, "Logged in successfully");
+            connection.login();
+            Log.i(TAG, "Logged in successfully");
 //            }
 
             //Presence presence = new Presence(Presence.Type.unavailable);
@@ -313,6 +315,48 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
         getPresence(to);
     }
 
+    public void setPresence(int presence) {
+        Presence.Type type = null;
+        Presence.Mode mode = null;
+        if (presence == 1) {
+            //online
+            type = Presence.Type.available;
+            mode = Presence.Mode.available;
+        } else if (presence == 2) {
+            //away
+            type = Presence.Type.available;
+            mode = Presence.Mode.away;
+        } else if (presence == 4) {
+            //offline/unavailable
+            type = Presence.Type.unavailable;
+            mode = Presence.Mode.away;
+        } else if (presence == 5) {
+            //logout
+            type = Presence.Type.unavailable;
+            mode = Presence.Mode.away;
+        } else {
+            //logout
+            type = Presence.Type.unavailable;
+            mode = Presence.Mode.away;
+        }
+
+        Presence presenceStanza = new Presence(type);
+        presenceStanza.setMode(mode);
+        presenceStanza.setPriority(PRIORITY);
+        try {
+            connection.sendStanza(presenceStanza);
+        } catch (SmackException.NotConnectedException e) {
+            e.printStackTrace();
+        }
+
+        if (presence == 5) {
+            try {
+                connection.disconnect(new Presence(Presence.Type.unavailable, null, PRIORITY, Presence.Mode.away));
+            } catch (SmackException.NotConnectedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
     private class ChatManagerListenerImpl implements ChatManagerListener {
         @Override
@@ -622,7 +666,7 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
     private static int retrieveState_mode(final Presence presence) {
         Log.i(TAG, "presence.isAvailable():" + presence.isAvailable());
         int userState = 0;
-        /** -1 for error, 0 for offline, 1 for online, 2 for away, 3 for busy*/
+        /** -1 for error, 0 for offline, 1 for online, 2 for away, 3 for busy, 4 for unavailable*/
         if (presence.getMode() == Presence.Mode.dnd) {
             userState = 3;
         } else if (presence.getMode() == Presence.Mode.away || presence.getMode() == Presence.Mode.xa) {
@@ -648,7 +692,34 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
     @Override
     public void onRosterLoaded(Roster roster) {
         //new roster loaded
-        roster.addRosterListener(myRosterEventListener);
+        addRosterListener();
+    }
+
+    private void addRosterListener() {
+        if (connection == null || !isConnected()) return;
+
+        if (myRosterEventListener == null) {
+            myRosterEventListener = new MyRosterEventListener();
+        }
+        Roster roster = Roster.getInstanceFor(connection);
+        try {
+            roster.reload();
+        } catch (SmackException.NotLoggedInException e) {
+            e.printStackTrace();
+        } catch (SmackException.NotConnectedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void removeRosterListener() {
+        if (connection == null || !isConnected() || myRosterEventListener == null) return;
+        try {
+            Roster roster = Roster.getInstanceFor(connection);
+            roster.removeRosterListener(myRosterEventListener);
+            myRosterEventListener = null;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private class MyRosterEventListener implements RosterListener {

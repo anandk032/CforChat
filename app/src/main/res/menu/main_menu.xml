@@ -7,4 +7,19 @@
         android:orderInCategory="100"
         android:title="@string/action_settings"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/available"
+        android:orderInCategory="100"
+        android:title="available"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/unavailable"
+        android:orderInCategory="100"
+        android:title="unavailable"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/away"
+        android:orderInCategory="100"
+        android:title="away"
+        app:showAsAction="never" />
 </menu>
