@@ -209,6 +209,7 @@ public class MyService extends Service {
     public static class PresenceUiBoradcast extends BroadcastReceiver {
         public static final String ACTION_XMPP_PRESENCE_UI_UPDATE = "com.meetwo.XMPP_PRESENCE_UI_UPDATE";
         public static final String BUNDLE_PRESENCE_MODE = "presence_mode";
+        public static final String BUNDLE_LAST_SEEN = "last_seen";
 
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -216,7 +217,7 @@ public class MyService extends Service {
                 return;
 
             if (ACTION_XMPP_PRESENCE_UI_UPDATE.equalsIgnoreCase(intent.getAction())) {
-                ((MainActivity) context).updatePresence(intent.getIntExtra(BUNDLE_PRESENCE_MODE, -1));
+                ((MainActivity) context).updatePresence(intent.getIntExtra(BUNDLE_PRESENCE_MODE, -1), intent.getLongExtra(BUNDLE_PRESENCE_MODE, -1));
             }
         }
     }

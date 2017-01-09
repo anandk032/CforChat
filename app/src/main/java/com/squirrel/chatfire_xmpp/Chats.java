@@ -83,6 +83,7 @@ public class Chats extends Fragment implements View.OnClickListener {
                 "Chats");
         msg_edittext = (ChatEditText) view.findViewById(R.id.messageEditText);
         msg_edittext.setChatId(user2);
+        MyXMPP.setCurrentChatId(user2);
         msgListView = (RecyclerView) view.findViewById(R.id.msgListView);
         LinearLayoutManager linearManager = new LinearLayoutManager(getActivity());
         //linearManager.setReverseLayout(true);

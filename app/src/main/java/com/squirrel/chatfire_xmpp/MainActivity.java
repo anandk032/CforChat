@@ -94,12 +94,12 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void updatePresence(int presenceMode) {
+    public void updatePresence(int presenceMode, long seconds) {
         Log.i(TAG, "Presence Mode:" + presenceMode);
         if (presenceMode == 1) {
             getSupportActionBar().setSubtitle("online");
         } else if (presenceMode == 2 || presenceMode == 3) {
-            getSupportActionBar().setSubtitle("away");
+            getSupportActionBar().setSubtitle("away " + seconds);
         } else if (presenceMode == 0 || presenceMode == -1) {
             getSupportActionBar().setSubtitle("");
         }
