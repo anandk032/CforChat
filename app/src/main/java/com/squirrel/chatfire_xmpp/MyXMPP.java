@@ -701,12 +701,10 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
         if (myRosterEventListener == null) {
             myRosterEventListener = new MyRosterEventListener();
         }
-        Roster roster = Roster.getInstanceFor(connection);
         try {
-            roster.reload();
-        } catch (SmackException.NotLoggedInException e) {
-            e.printStackTrace();
-        } catch (SmackException.NotConnectedException e) {
+            Roster roster = Roster.getInstanceFor(connection);
+            roster.addRosterListener(myRosterEventListener);
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
