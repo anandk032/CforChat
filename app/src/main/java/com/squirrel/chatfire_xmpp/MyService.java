@@ -49,7 +49,7 @@ public class MyService extends Service {
     public int onStartCommand(final Intent intent, final int flags,
                               final int startId) {
         start();
-        return Service.START_STICKY;
+        return Service.START_NOT_STICKY;
     }
 
     @Override

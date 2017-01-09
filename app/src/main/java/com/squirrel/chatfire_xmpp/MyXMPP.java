@@ -124,8 +124,8 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
         config.setResource("Meetwo");
         config.setSendPresence(false);
         config.setUsernameAndPassword(loginUser, passwordUser);
-        XMPPTCPConnection.setUseStreamManagementResumptiodDefault(true);
-        XMPPTCPConnection.setUseStreamManagementDefault(true);
+        XMPPTCPConnection.setUseStreamManagementResumptiodDefault(false);
+        XMPPTCPConnection.setUseStreamManagementDefault(false);
         connection = new XMPPTCPConnection(config.build());
         connection.setPacketReplyTimeout(12000);
         XMPPConnectionListener connectionListener = new XMPPConnectionListener();
@@ -178,7 +178,7 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
             ReconnectionManager reconnectionManager = ReconnectionManager.getInstanceFor(connection);
             ReconnectionManager.setEnabledPerDefault(true);
             reconnectionManager.enableAutomaticReconnection();
-            reconnectionManager.setReconnectionPolicy(ReconnectionManager.ReconnectionPolicy.RANDOM_INCREASING_DELAY);
+            reconnectionManager.setReconnectionPolicy(ReconnectionManager.ReconnectionPolicy.FIXED_DELAY);
             reconnectionManager.setFixedDelay(5);
 
             listenDeliveryReports();
@@ -251,6 +251,7 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
 //            if (connection.isAuthenticated()) {
 //                Log.i(TAG, "Authorised already, no need to logged in");
 //            } else {
+
             connection.login();
             Log.i(TAG, "Logged in successfully");
 //            }
@@ -398,7 +399,7 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
             Log.d(TAG, "Connected!");
             connected = true;
             if (!connection.isAuthenticated()) {
-                login();
+                //login();
             }
         }
 
