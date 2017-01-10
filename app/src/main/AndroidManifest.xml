@@ -7,6 +7,9 @@
     <uses-permission android:name="android.permission.READ_PROFILE" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
 
     <application
         android:allowBackup="true"
@@ -42,6 +45,17 @@
             android:name=".MyService$PresenceUiBoradcast"
             android:enabled="false"
             android:exported="false" />
+
+        <receiver
+            android:name=".MyService$NetworkChangeReceiver"
+            android:enabled="false"
+            android:exported="false"
+            android:label="NetworkChangeReceiver">
+            <intent-filter>
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
+                <action android:name="android.net.wifi.WIFI_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

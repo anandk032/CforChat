@@ -6,11 +6,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.preference.PreferenceManager;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.squirrel.chatfire_xmpp.model.ChatMessage;
 
@@ -27,10 +30,12 @@ public class MyService extends Service {
     private static final String DOMAIN = "54.205.116.234";
     private MyXMPP xmpp;
     private SharedPreferences prefs;
-    private SendMessageBroadcast mSendMessageBroadcast;
     private Thread mThread;
     private Handler mTHandler;
     private boolean mActive;
+
+    private SendMessageBroadcast mSendMessageBroadcast;
+    private NetworkChangeReceiver networkChangeReceiver;
 
     @Override
     public IBinder onBind(final Intent intent) {
@@ -94,6 +99,15 @@ public class MyService extends Service {
     }
 
     private void connect() {
+        createInstance();
+        xmpp.connect();
+    }
+
+    private MyXMPP getXmpp() {
+        return xmpp;
+    }
+
+    private void createInstance() {
         String user = prefs.getString(USERNAME, "");
         String pass = prefs.getString(PASSWORD, "");
 
@@ -101,8 +115,8 @@ public class MyService extends Service {
             return;
         }
 
-        xmpp = MyXMPP.getInstance(MyService.this, DOMAIN, user, pass);
-        xmpp.connect();
+        if (xmpp == null)
+            xmpp = MyXMPP.getInstance(MyService.this, DOMAIN, user, pass);
     }
 
     private void register() {
@@ -116,12 +130,16 @@ public class MyService extends Service {
         intentFilter.addAction(SendMessageBroadcast.ACTION_XMPP_PRESENCE_UPDATE);
         intentFilter.addAction(SendMessageBroadcast.ACTION_XMPP_SET_PRESENCE_MODE);
         registerReceiver(mSendMessageBroadcast, intentFilter);
+
+        registerNetworkReceiver(MyService.this);
     }
 
     private void unRegister() {
         if (mSendMessageBroadcast != null) {
             unregisterReceiver(mSendMessageBroadcast);
         }
+
+        unRegisterNetworkReceiver(MyService.this);
     }
 
     public class SendMessageBroadcast extends BroadcastReceiver {
@@ -220,5 +238,46 @@ public class MyService extends Service {
                 ((MainActivity) context).updatePresence(intent.getIntExtra(BUNDLE_PRESENCE_MODE, -1), intent.getLongExtra(BUNDLE_LAST_SEEN, -1));
             }
         }
+    }
+
+    private void registerNetworkReceiver(Context context) {
+        if (context == null) return;
+
+        if (networkChangeReceiver == null)
+            networkChangeReceiver = new NetworkChangeReceiver();
+
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+        context.registerReceiver(networkChangeReceiver, intentFilter);
+    }
+
+    private void unRegisterNetworkReceiver(Context context) {
+        if (context == null) return;
+
+        if (networkChangeReceiver != null)
+            context.unregisterReceiver(networkChangeReceiver);
+    }
+
+    public static class NetworkChangeReceiver extends BroadcastReceiver {
+
+        NetworkChangeReceiver() {
+        }
+
+        @Override
+        public void onReceive(final Context context, final Intent intent) {
+            boolean isConnected = checkInternetConnection(context);
+            Toast.makeText(context, "" + isConnected, Toast.LENGTH_LONG).show();
+            ((MyService) context).createInstance();
+            ((MyService) context).getXmpp().onNetworkChange(isConnected);
+        }
+    }
+
+    public static boolean checkInternetConnection(Context context) {
+        if (context == null)
+            return false;
+        ConnectivityManager connectivityManager = (ConnectivityManager) context
+                .getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
+        return networkInfo != null && networkInfo.isConnected();
     }
 }

@@ -134,6 +134,13 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         doUnbindService();
+        MyXMPP.setIsAppFront(false);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        MyXMPP.setIsAppFront(true);
     }
 
     @Override

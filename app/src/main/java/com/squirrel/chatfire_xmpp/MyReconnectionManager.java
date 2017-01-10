@@ -1,5 +1,7 @@
 package com.squirrel.chatfire_xmpp;
 
+import android.util.Log;
+
 import org.jivesoftware.smack.AbstractConnectionListener;
 import org.jivesoftware.smack.AbstractXMPPConnection;
 import org.jivesoftware.smack.ConnectionCreationListener;
@@ -25,7 +27,8 @@ import java.util.logging.Logger;
  */
 
 public class MyReconnectionManager {
-    private static final Logger LOGGER = Logger.getLogger(ReconnectionManager.class.getName());
+    private static final String TAG = "MyReconnectionManager";
+    private static final Logger LOGGER = Logger.getLogger(MyReconnectionManager.class.getName());
 
     private static final Map<AbstractXMPPConnection, MyReconnectionManager> INSTANCES = new WeakHashMap<AbstractXMPPConnection, MyReconnectionManager>();
     private final WeakReference<AbstractXMPPConnection> weakRefConnection;
@@ -59,14 +62,14 @@ public class MyReconnectionManager {
         XMPPConnectionRegistry.addConnectionCreationListener(new ConnectionCreationListener() {
             public void connectionCreated(XMPPConnection connection) {
                 if (connection instanceof AbstractXMPPConnection) {
-                    ReconnectionManager.getInstanceFor((AbstractXMPPConnection) connection);
+                    MyReconnectionManager.getInstanceFor((AbstractXMPPConnection) connection);
                 }
             }
         });
     }
 
     private MyReconnectionManager(AbstractXMPPConnection connection) {
-        weakRefConnection = new WeakReference<AbstractXMPPConnection>(connection);
+        weakRefConnection = new WeakReference<>(connection);
 
         reconnectionRunnable = new Thread() {
 
@@ -125,11 +128,15 @@ public class MyReconnectionManager {
                         try {
                             Thread.sleep(1000);
                             remainingSeconds--;
+
                             //for (ConnectionListener listener : connection.connectionListeners) {
                             //    listener.reconnectingIn(remainingSeconds);
                             //}
+                            Log.i(TAG, "Connecting in " + remainingSeconds);
+                            LOGGER.log(Level.FINE, "Connecting in " + remainingSeconds);
                         } catch (InterruptedException e) {
                             LOGGER.log(Level.FINE, "waiting for reconnection interrupted", e);
+                            Log.i(TAG, "waiting for reconnection interrupted" + e.getMessage());
                             break;
                         }
                     }
@@ -157,6 +164,8 @@ public class MyReconnectionManager {
                         //for (ConnectionListener listener : connection.connectionListeners) {
                         //    listener.reconnectionFailed(e);
                         //}
+                        LOGGER.log(Level.FINE, "Failed to reconnect", e);
+                        Log.i(TAG, "Failed to reconnect: " + e.getMessage());
                     }
                 }
             }
@@ -211,17 +220,24 @@ public class MyReconnectionManager {
         }
     };
 
-    private synchronized void reconnect() {
+    public synchronized void reconnect() {
         XMPPConnection connection = this.weakRefConnection.get();
         if (connection == null) {
             LOGGER.fine("Connection is null, will not reconnect");
             return;
         }
+
         // Since there is no thread running, creates a new one to attempt
         // the reconnection.
         // avoid to run duplicated reconnectionThread -- fd: 16/09/2010
-        if (reconnectionThread != null && reconnectionThread.isAlive())
+        if (reconnectionThread != null && reconnectionThread.isAlive()) {
+            try {
+                reconnectionThread.interrupt();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             return;
+        }
 
         reconnectionThread = Async.go(reconnectionRunnable,
                 "Smack Reconnection Manager (" + connection.getConnectionCounter() + ')');
@@ -247,5 +263,9 @@ public class MyReconnectionManager {
     public void setFixedDelay(int fixedDelay) {
         this.fixedDelay = fixedDelay;
         setReconnectionPolicy(ReconnectionManager.ReconnectionPolicy.FIXED_DELAY);
+    }
+
+    public static void notifyConnectivityChange(AbstractXMPPConnection connection) {
+        getInstanceFor(connection);
     }
 }
