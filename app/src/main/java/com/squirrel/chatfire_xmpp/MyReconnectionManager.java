@@ -136,7 +136,7 @@ public class MyReconnectionManager {
                             LOGGER.log(Level.FINE, "Connecting in " + remainingSeconds);
                         } catch (InterruptedException e) {
                             LOGGER.log(Level.FINE, "waiting for reconnection interrupted", e);
-                            Log.i(TAG, "waiting for reconnection interrupted" + e.getMessage());
+                            Log.i(TAG, "Reconnection interrupted " + e.getMessage());
                             break;
                         }
                     }
@@ -220,10 +220,10 @@ public class MyReconnectionManager {
         }
     };
 
-    public synchronized void reconnect() {
+
+    public synchronized void interruptCheckConnection() {
         XMPPConnection connection = this.weakRefConnection.get();
         if (connection == null) {
-            LOGGER.fine("Connection is null, will not reconnect");
             return;
         }
 
@@ -236,6 +236,24 @@ public class MyReconnectionManager {
             } catch (Exception e) {
                 e.printStackTrace();
             }
+            return;
+        }
+
+        reconnectionThread = Async.go(reconnectionRunnable,
+                "Smack Reconnection Manager (" + connection.getConnectionCounter() + ')');
+    }
+
+    public synchronized void reconnect() {
+        XMPPConnection connection = this.weakRefConnection.get();
+        if (connection == null) {
+            LOGGER.fine("Connection is null, will not reconnect");
+            return;
+        }
+
+        // Since there is no thread running, creates a new one to attempt
+        // the reconnection.
+        // avoid to run duplicated reconnectionThread -- fd: 16/09/2010
+        if (reconnectionThread != null && reconnectionThread.isAlive()) {
             return;
         }
 

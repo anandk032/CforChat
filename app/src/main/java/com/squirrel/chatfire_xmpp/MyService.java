@@ -48,6 +48,7 @@ public class MyService extends Service {
         Log.d(TAG, " Service onCreate()");
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
         register();
+        ServerPingWithAlarmManager.onCreate(this);
     }
 
     @Override
@@ -60,6 +61,7 @@ public class MyService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        ServerPingWithAlarmManager.onDestroy();
         stop();
         unRegister();
     }
@@ -259,12 +261,11 @@ public class MyService extends Service {
     }
 
     public static class NetworkChangeReceiver extends BroadcastReceiver {
-
         NetworkChangeReceiver() {
         }
 
         @Override
-        public void onReceive(final Context context, final Intent intent) {
+        public synchronized void onReceive(final Context context, final Intent intent) {
             boolean isConnected = checkInternetConnection(context);
             Toast.makeText(context, "" + isConnected, Toast.LENGTH_LONG).show();
             ((MyService) context).createInstance();

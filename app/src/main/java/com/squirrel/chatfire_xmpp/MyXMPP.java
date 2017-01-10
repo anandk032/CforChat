@@ -34,6 +34,8 @@ import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
 import org.jivesoftware.smackx.iqlast.LastActivityManager;
 import org.jivesoftware.smackx.iqlast.packet.LastActivity;
+import org.jivesoftware.smackx.ping.PingFailedListener;
+import org.jivesoftware.smackx.ping.PingManager;
 import org.jivesoftware.smackx.receipts.DeliveryReceipt;
 import org.jivesoftware.smackx.xevent.DefaultMessageEventRequestListener;
 import org.jivesoftware.smackx.xevent.MessageEventManager;
@@ -48,7 +50,7 @@ import java.util.Collection;
  * Created by Dharmesh on 12/28/2016.
  */
 
-public class MyXMPP implements StanzaListener, RosterLoadedListener {
+public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedListener {
     private static final String TAG = "MyXMPP";
 
     private static final int PRIORITY = 24;
@@ -67,6 +69,7 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
     private MMessageListener mMessageListener;
     private MessageEventManager messageEventManager;
     private MyRosterEventListener myRosterEventListener;
+    private DefaultMessageEventRequestListener defaultMessageEventRequestListener = new DefaultMessageEventRequestListener();
 
     private static boolean isAppFront = false;
 
@@ -85,6 +88,14 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
             instance = new MyXMPP(context, server, user, pass);
         }
         return instance;
+    }
+
+    static {
+        try {
+            Class.forName("org.jivesoftware.smack.ReconnectionManager");
+        } catch (ClassNotFoundException ex) {
+            // problem loading reconnection manager
+        }
     }
 
     private void init() {
@@ -114,24 +125,31 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
         connection.addConnectionListener(connectionListener);
         connection.addStanzaAcknowledgedListener(this);
 
+        //reconnect manager
         MyReconnectionManager reconnectionManager = MyReconnectionManager.getInstanceFor(connection);
         ReconnectionManager.setEnabledPerDefault(false);
         reconnectionManager.enableAutomaticReconnection();
-        reconnectionManager.setReconnectionPolicy(ReconnectionManager.ReconnectionPolicy.RANDOM_INCREASING_DELAY);
-        //reconnectionManager.setFixedDelay(5);
+        reconnectionManager.setReconnectionPolicy(ReconnectionManager.ReconnectionPolicy.FIXED_DELAY);
+        reconnectionManager.setFixedDelay(10);
 
         //roster
         Roster.setDefaultSubscriptionMode(Roster.SubscriptionMode.accept_all);
 
-        ReadReceiptManager.getInstanceFor(connection);
+        //ReadReceiptManager.getInstanceFor(connection);
         //ReadReceiptManager.getInstanceFor(connection).addReadReceivedListener(new ReadReceiptListener());
-        DoubleTickManager.getInstanceFor(connection);
+        //DoubleTickManager.getInstanceFor(connection);
         //DoubleTickManager.getInstanceFor(connection).addReadReceivedListener(new ReadReceiptListener());
 
         //add read receipt,double tick provider
-        ProviderManager.addExtensionProvider(ReadReceiptManager.ReadReceipt.ELEMENT, ReadReceiptManager.ReadReceipt.NAMESPACE, new ReadReceiptManager.ReadReceiptProvider());
-        ProviderManager.addExtensionProvider(DoubleTickManager.DoubleTickReceipt.ELEMENT, DoubleTickManager.DoubleTickReceipt.NAMESPACE, new DoubleTickManager.DoubleTickProvider());
+        //ProviderManager.addExtensionProvider(ReadReceiptManager.ReadReceipt.ELEMENT, ReadReceiptManager.ReadReceipt.NAMESPACE, new ReadReceiptManager.ReadReceiptProvider());
+        //ProviderManager.addExtensionProvider(DoubleTickManager.DoubleTickReceipt.ELEMENT, DoubleTickManager.DoubleTickReceipt.NAMESPACE, new DoubleTickManager.DoubleTickProvider());
         ProviderManager.addExtensionProvider(MessageEvent.ELEMENT, MessageEvent.NAMESPACE, new MessageEventProvider());
+    }
+
+    @Override
+    public void pingFailed() {
+        Log.i(TAG, "PingManager : PING FAILED");
+        MyReconnectionManager.getInstanceFor(connection).reconnect();
     }
 
     public String getUserId() {
@@ -164,58 +182,62 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
             if (!login()) return;
 
             listenDeliveryReports();
-            listenMessageEvent();
         } catch (SmackException | IOException | XMPPException e) {
             e.printStackTrace();
-            MyReconnectionManager.getInstanceFor(connection).reconnect();
+            checkConnection();
         }
     }
 
-    public void onNetworkChange(final boolean isAvailable) {
+    public synchronized void onNetworkChange(final boolean isAvailable) {
         Log.i(TAG, "onNetworkChange ?" + isAvailable);
         if (isAvailable) {
-            MyReconnectionManager.getInstanceFor(connection).setFixedDelay(5);
-            MyReconnectionManager.getInstanceFor(connection).reconnect();
+            MyReconnectionManager.getInstanceFor(connection).setFixedDelay(10);
+            MyReconnectionManager.getInstanceFor(connection).interruptCheckConnection();
         } else {
-            MyReconnectionManager.getInstanceFor(connection).setReconnectionPolicy(ReconnectionManager.ReconnectionPolicy.RANDOM_INCREASING_DELAY);
-            //MyReconnectionManager.getInstanceFor(connection).reconnect();
+            MyReconnectionManager.getInstanceFor(connection).setFixedDelay(10);
+            MyReconnectionManager.getInstanceFor(connection).interruptCheckConnection();
         }
     }
 
     private void listenMessageEvent() {
-        messageEventManager = MessageEventManager.getInstanceFor(connection);
-        messageEventManager.addMessageEventRequestListener(new DefaultMessageEventRequestListener());
-        messageEventManager.addMessageEventNotificationListener(new MessageEventNotificationListener() {
-            @Override
-            public void deliveredNotification(String from, String packetID) {
-                Log.e(TAG, "deliveredNotification: from" + from);
-            }
-
-            @Override
-            public void displayedNotification(String from, String packetID) {
-                Log.e(TAG, "displayedNotification: from" + from);
-            }
-
-            @Override
-            public void composingNotification(String from, String packetID) {
-                Log.e(TAG, "composingNotification: from" + from);
-                Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_MESSAGE);
-                mContext.sendBroadcast(intent);
-            }
-
-            @Override
-            public void offlineNotification(String from, String packetID) {
-                Log.e(TAG, "offlineNotification: from" + from);
-            }
-
-            @Override
-            public void cancelledNotification(String from, String packetID) {
-                Log.e(TAG, "cancelledNotification: from" + from);
-                Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_PAUSE_MESSAGE);
-                mContext.sendBroadcast(intent);
-            }
-        });
+        if (messageEventManager == null)
+            messageEventManager = MessageEventManager.getInstanceFor(connection);
+        messageEventManager.removeMessageEventRequestListener(defaultMessageEventRequestListener);
+        messageEventManager.addMessageEventRequestListener(defaultMessageEventRequestListener);
+        messageEventManager.removeMessageEventNotificationListener(messageEventNotificationListener);
+        messageEventManager.addMessageEventNotificationListener(messageEventNotificationListener);
     }
+
+    private MessageEventNotificationListener messageEventNotificationListener = new MessageEventNotificationListener() {
+        @Override
+        public void deliveredNotification(String from, String packetID) {
+            Log.e(TAG, "deliveredNotification: from" + from);
+        }
+
+        @Override
+        public void displayedNotification(String from, String packetID) {
+            Log.e(TAG, "displayedNotification: from" + from);
+        }
+
+        @Override
+        public void composingNotification(String from, String packetID) {
+            Log.e(TAG, "composingNotification: from" + from);
+            Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_MESSAGE);
+            mContext.sendBroadcast(intent);
+        }
+
+        @Override
+        public void offlineNotification(String from, String packetID) {
+            Log.e(TAG, "offlineNotification: from" + from);
+        }
+
+        @Override
+        public void cancelledNotification(String from, String packetID) {
+            Log.e(TAG, "cancelledNotification: from" + from);
+            Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_PAUSE_MESSAGE);
+            mContext.sendBroadcast(intent);
+        }
+    };
 
     private void listenDeliveryReports() {
         if (connection == null || !connection.isConnected()) {
@@ -249,6 +271,9 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
             return true;
         } catch (SmackException.AlreadyLoggedInException e) {
             return true;
+        } catch (SmackException.NotConnectedException e) {
+            e.printStackTrace();
+            checkConnection();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -283,6 +308,7 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
             MessageEventManager.getInstanceFor(connection).sendComposingNotification(to, String.valueOf(System.currentTimeMillis()));
         } catch (SmackException.NotConnectedException e) {
             e.printStackTrace();
+            checkConnection();
         }
     }
 
@@ -293,6 +319,7 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
             MessageEventManager.getInstanceFor(connection).sendCancelledNotification(to, String.valueOf(System.currentTimeMillis()));
         } catch (SmackException.NotConnectedException e) {
             e.printStackTrace();
+            checkConnection();
         }
     }
 
@@ -300,6 +327,11 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
         if (!to.contains("@"))
             to = to + "@" + SERVER;
         getPresence(to);
+    }
+
+    private void checkConnection() {
+        if (!isConnected())
+            MyReconnectionManager.getInstanceFor(connection).reconnect();
     }
 
     public void setPresence(int presence) {
@@ -341,8 +373,10 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
             Log.i(TAG, "Sending presence to server");
         } catch (SmackException.NotConnectedException e) {
             e.printStackTrace();
+            checkConnection();
         }
     }
+
 
     private class ChatManagerListenerImpl implements ChatManagerListener {
         @Override
@@ -371,9 +405,20 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
             Log.i(TAG, "Chat message sent msgId:" + message.getStanzaId());
         } catch (SmackException.NotConnectedException e) {
             Log.e("xmpp.SendMessage()", "msg Not sent!-Not Connected!");
+            checkConnection();
         } catch (Exception e) {
             Log.e("xmpp.SendMessage()", "-Exception" +
                     "msg Not sent!" + e.getMessage());
+        }
+    }
+
+    private void setInitialPresence() {
+        if (connection.isAuthenticated()) {
+            if (isAppFront()) {
+                setPresence(PRESENCE.AVAILABLE.ordinal());
+            } else {
+                setPresence(PRESENCE.AWAY.ordinal());
+            }
         }
     }
 
@@ -383,18 +428,24 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
         @Override
         public void connected(final XMPPConnection connection) {
             Log.d(TAG, "Connected!");
-            if (connection.isAuthenticated()) {
-                if (isAppFront()) {
-                    setPresence(PRESENCE.AVAILABLE.ordinal());
-                } else {
-                    setPresence(PRESENCE.AWAY.ordinal());
-                }
-            }
+
+            //Ping manager
+            PingManager pingManager = PingManager.getInstanceFor(connection);
+            pingManager.setPingInterval(60);
+            pingManager.registerPingFailedListener(MyXMPP.this);
+
+            ServerPingWithAlarmManager.getInstanceFor(connection).setEnabled(true);
+
+            listenMessageEvent();
+            setInitialPresence();
         }
 
         @Override
         public void connectionClosed() {
             Log.d(TAG, "ConnectionClosed!");
+            if (PingManager.getInstanceFor(connection) != null) {
+                PingManager.getInstanceFor(connection).unregisterPingFailedListener(MyXMPP.this);
+            }
         }
 
         @Override
@@ -415,19 +466,15 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
         @Override
         public void reconnectionSuccessful() {
             Log.d(TAG, "ReconnectionSuccessful");
+            listenMessageEvent();
         }
 
         @Override
         public void authenticated(XMPPConnection conn, boolean arg1) {
             Log.d(TAG, "Authenticated!");
 
-            if (connection.isAuthenticated()) {
-                if (isAppFront()) {
-                    setPresence(PRESENCE.AVAILABLE.ordinal());
-                } else {
-                    setPresence(PRESENCE.AWAY.ordinal());
-                }
-            }
+            listenMessageEvent();
+            setInitialPresence();
 
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 @Override
@@ -599,6 +646,7 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener {
 
         if (!isConnected()) {
             sendPresenceBroadcast(-1, -1, jId);
+            checkConnection();
             return;
         }
 
