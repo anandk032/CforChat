@@ -132,7 +132,7 @@ public class MyReconnectionManager {
                             //for (ConnectionListener listener : connection.connectionListeners) {
                             //    listener.reconnectingIn(remainingSeconds);
                             //}
-                            Log.i(TAG, "Connecting in " + remainingSeconds);
+                            Log.i(TAG, "Connecting in " + remainingSeconds + " & INSTANCES size:" + INSTANCES.size());
                             LOGGER.log(Level.FINE, "Connecting in " + remainingSeconds);
                         } catch (InterruptedException e) {
                             LOGGER.log(Level.FINE, "waiting for reconnection interrupted", e);

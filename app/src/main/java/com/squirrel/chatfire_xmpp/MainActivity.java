@@ -151,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
+        if (getSupportFragmentManager().getBackStackEntryCount() == 0) {
             super.onBackPressed();
             return;
         }

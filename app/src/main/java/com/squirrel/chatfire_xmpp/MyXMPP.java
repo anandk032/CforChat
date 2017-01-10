@@ -58,7 +58,7 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
     private static String SERVER = "ip-172-31-53-77.ec2.internal";
 
     private String serverAddress;
-    private XMPPTCPConnection connection;
+    private static XMPPTCPConnection connection = null;
     private static String loginUser;
     private static String passwordUser;
     private Gson gson;
@@ -117,6 +117,7 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
         config.setResource("Meetwo");
         config.setSendPresence(false);
         config.setUsernameAndPassword(loginUser, passwordUser);
+
         XMPPTCPConnection.setUseStreamManagementResumptiodDefault(false);
         XMPPTCPConnection.setUseStreamManagementDefault(false);
         connection = new XMPPTCPConnection(config.build());
@@ -134,6 +135,13 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
 
         //roster
         Roster.setDefaultSubscriptionMode(Roster.SubscriptionMode.accept_all);
+
+        //Ping manager
+        PingManager pingManager = PingManager.getInstanceFor(connection);
+        pingManager.setPingInterval(60);
+        pingManager.registerPingFailedListener(MyXMPP.this);
+
+        ServerPingWithAlarmManager.getInstanceFor(connection).setEnabled(true);
 
         //ReadReceiptManager.getInstanceFor(connection);
         //ReadReceiptManager.getInstanceFor(connection).addReadReceivedListener(new ReadReceiptListener());
@@ -222,8 +230,10 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
         @Override
         public void composingNotification(String from, String packetID) {
             Log.e(TAG, "composingNotification: from" + from);
-            Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_MESSAGE);
-            mContext.sendBroadcast(intent);
+            if (mContext != null) {
+                Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_MESSAGE);
+                mContext.sendBroadcast(intent);
+            }
         }
 
         @Override
@@ -234,8 +244,10 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
         @Override
         public void cancelledNotification(String from, String packetID) {
             Log.e(TAG, "cancelledNotification: from" + from);
-            Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_PAUSE_MESSAGE);
-            mContext.sendBroadcast(intent);
+            if (mContext != null) {
+                Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_PAUSE_MESSAGE);
+                mContext.sendBroadcast(intent);
+            }
         }
     };
 
@@ -426,16 +438,8 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
         private static final String TAG = "XMPPConnectionListener";
 
         @Override
-        public void connected(final XMPPConnection connection) {
+        public void connected(XMPPConnection connection) {
             Log.d(TAG, "Connected!");
-
-            //Ping manager
-            PingManager pingManager = PingManager.getInstanceFor(connection);
-            pingManager.setPingInterval(60);
-            pingManager.registerPingFailedListener(MyXMPP.this);
-
-            ServerPingWithAlarmManager.getInstanceFor(connection).setEnabled(true);
-
             listenMessageEvent();
             setInitialPresence();
         }
@@ -508,7 +512,6 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
             }).start();
         }
     }
-
 
     private class MMessageListener implements ChatMessageListener {
         private static final String TAG = "MMessageListener";
