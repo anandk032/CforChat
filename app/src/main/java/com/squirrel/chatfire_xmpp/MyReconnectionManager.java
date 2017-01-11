@@ -52,9 +52,11 @@ public class MyReconnectionManager {
     public static synchronized MyReconnectionManager getInstanceFor(AbstractXMPPConnection connection) {
         MyReconnectionManager reconnectionManager = INSTANCES.get(connection);
         if (reconnectionManager == null) {
+            Log.i(TAG, "getInstanceFor size: " + INSTANCES.size());
             reconnectionManager = new MyReconnectionManager(connection);
             INSTANCES.put(connection, reconnectionManager);
         }
+        Log.i(TAG, "MyReconnectionManager size: " + INSTANCES.size());
         return reconnectionManager;
     }
 
@@ -212,7 +214,7 @@ public class MyReconnectionManager {
                 StreamError error = xmppEx.getStreamError();
 
                 if (StreamError.Condition.conflict == error.getCondition()) {
-                    return;
+                    //return;
                 }
             }
 
@@ -247,6 +249,7 @@ public class MyReconnectionManager {
         XMPPConnection connection = this.weakRefConnection.get();
         if (connection == null) {
             LOGGER.fine("Connection is null, will not reconnect");
+            Log.i(TAG, "Connection is null, will not reconnect");
             return;
         }
 
@@ -254,11 +257,21 @@ public class MyReconnectionManager {
         // the reconnection.
         // avoid to run duplicated reconnectionThread -- fd: 16/09/2010
         if (reconnectionThread != null && reconnectionThread.isAlive()) {
-            return;
+            Log.i(TAG, "Re-connection thread already running..");
+            if (!connection.isConnected()) {
+                try {
+                    reconnectionThread.interrupt();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            } else {
+                return;
+            }
         }
 
         reconnectionThread = Async.go(reconnectionRunnable,
                 "Smack Reconnection Manager (" + connection.getConnectionCounter() + ')');
+        Log.i(TAG, "Re-connection thread running..");
     }
 
     private boolean isReconnectionPossible(XMPPConnection connection) {

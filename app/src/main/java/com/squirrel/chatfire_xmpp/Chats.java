@@ -87,6 +87,7 @@ public class Chats extends Fragment implements View.OnClickListener {
         msgListView = (RecyclerView) view.findViewById(R.id.msgListView);
         LinearLayoutManager linearManager = new LinearLayoutManager(getActivity());
         //linearManager.setReverseLayout(true);
+        linearManager.setStackFromEnd(true);
         msgListView.setLayoutManager(linearManager);
         Button sendButton = (Button) view
                 .findViewById(R.id.sendMessageButton);

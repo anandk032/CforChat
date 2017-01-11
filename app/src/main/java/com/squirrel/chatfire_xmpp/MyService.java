@@ -28,7 +28,6 @@ public class MyService extends Service {
     public static final String PASSWORD = "password";
 
     private static final String DOMAIN = "54.205.116.234";
-    private MyXMPP xmpp;
     private SharedPreferences prefs;
     private Thread mThread;
     private Handler mTHandler;
@@ -92,8 +91,8 @@ public class MyService extends Service {
         mTHandler.post(new Runnable() {
             @Override
             public void run() {
-                if (xmpp != null) {
-                    xmpp.disconnect();
+                if (MyXMPP.getInstance() != null) {
+                    MyXMPP.getInstance().disconnect();
                 }
             }
         });
@@ -102,23 +101,13 @@ public class MyService extends Service {
 
     private void connect() {
         createInstance();
-        xmpp.connect();
+        MyXMPP.getInstance().connect();
     }
 
-    private MyXMPP getXmpp() {
-        return xmpp;
-    }
-
-    private void createInstance() {
+    private synchronized void createInstance() {
         String user = prefs.getString(USERNAME, "");
         String pass = prefs.getString(PASSWORD, "");
-
-        if (xmpp != null && xmpp.isConnected()) {
-            return;
-        }
-
-        if (xmpp == null)
-            xmpp = MyXMPP.getInstance(MyService.this, DOMAIN, user, pass);
+        MyXMPP.getInstance(MyService.this, DOMAIN, user, pass);
     }
 
     private void register() {
@@ -173,38 +162,38 @@ public class MyService extends Service {
         }
 
         private void sendMessage(String to, String body) {
-            if (xmpp != null) {
+            if (MyXMPP.getInstance() != null) {
                 String msgId = String.valueOf(System.currentTimeMillis());
-                ChatMessage chatMessage = new ChatMessage(xmpp.getUserId(), to, body, msgId, true);
-                xmpp.sendMessage(chatMessage);
+                ChatMessage chatMessage = new ChatMessage(MyXMPP.getInstance().getUserId(), to, body, msgId, true);
+                MyXMPP.getInstance().sendMessage(chatMessage);
             }
         }
 
         private void composingPauseMessage(String to) {
             Log.d(TAG, "Composing : PAUSED");
-            if (xmpp != null) {
-                xmpp.composingPauseMessage(to);
+            if (MyXMPP.getInstance() != null) {
+                MyXMPP.getInstance().composingPauseMessage(to);
             }
         }
 
         private void composingMessage(String to) {
             Log.d(TAG, "Composing : COMPOSING");
-            if (xmpp != null) {
-                xmpp.composingMessage(to);
+            if (MyXMPP.getInstance() != null) {
+                MyXMPP.getInstance().composingMessage(to);
             }
         }
 
         private void sendPresenceUpdate(String to) {
             Log.d(TAG, "Sending update soon...");
-            if (xmpp != null) {
-                xmpp.getPresenceForUser(to);
+            if (MyXMPP.getInstance() != null) {
+                MyXMPP.getInstance().getPresenceForUser(to);
             }
         }
 
         private void setPresence(int presence) {
             Log.e(TAG, "setPresence: " + presence);
-            if (xmpp != null) {
-                xmpp.setPresence(presence);
+            if (MyXMPP.getInstance() != null) {
+                MyXMPP.getInstance().setPresence(presence);
             }
         }
     }
@@ -261,7 +250,7 @@ public class MyService extends Service {
     }
 
     public static class NetworkChangeReceiver extends BroadcastReceiver {
-        NetworkChangeReceiver() {
+        public NetworkChangeReceiver() {
         }
 
         @Override
@@ -269,7 +258,7 @@ public class MyService extends Service {
             boolean isConnected = checkInternetConnection(context);
             Toast.makeText(context, "" + isConnected, Toast.LENGTH_LONG).show();
             ((MyService) context).createInstance();
-            ((MyService) context).getXmpp().onNetworkChange(isConnected);
+            MyXMPP.getInstance().onNetworkChange(isConnected);
         }
     }
 

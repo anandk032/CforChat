@@ -32,6 +32,7 @@ import org.jivesoftware.smack.roster.RosterLoadedListener;
 import org.jivesoftware.smack.roster.packet.RosterPacket;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
+import org.jivesoftware.smackx.delay.packet.DelayInformation;
 import org.jivesoftware.smackx.iqlast.LastActivityManager;
 import org.jivesoftware.smackx.iqlast.packet.LastActivity;
 import org.jivesoftware.smackx.ping.PingFailedListener;
@@ -45,6 +46,7 @@ import org.jivesoftware.smackx.xevent.provider.MessageEventProvider;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Date;
 
 /**
  * Created by Dharmesh on 12/28/2016.
@@ -57,13 +59,14 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
     private static String CURRENT_CHAT_JID = "";
     private static String SERVER = "ip-172-31-53-77.ec2.internal";
 
-    private String serverAddress;
+    public static MyXMPP instance = null;
     private static XMPPTCPConnection connection = null;
+
+    private String serverAddress;
     private static String loginUser;
     private static String passwordUser;
     private Gson gson;
-    private MyService mContext;
-    private static MyXMPP instance = null;
+    private Context mContext;
 
     private ChatManagerListenerImpl mChatManagerListener;
     private MMessageListener mMessageListener;
@@ -73,7 +76,7 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
 
     private static boolean isAppFront = false;
 
-    private MyXMPP(MyService context, String serverAdress, String logiUser,
+    private MyXMPP(Context context, String serverAdress, String logiUser,
                    String passwordser) {
         this.serverAddress = serverAdress;
         loginUser = logiUser;
@@ -82,11 +85,15 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
         init();
     }
 
-    static MyXMPP getInstance(MyService context, String server,
-                              String user, String pass) {
+    synchronized static MyXMPP getInstance(Context context, String server,
+                                           String user, String pass) {
         if (instance == null) {
             instance = new MyXMPP(context, server, user, pass);
         }
+        return instance;
+    }
+
+    synchronized static MyXMPP getInstance() {
         return instance;
     }
 
@@ -118,8 +125,8 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
         config.setSendPresence(false);
         config.setUsernameAndPassword(loginUser, passwordUser);
 
-        XMPPTCPConnection.setUseStreamManagementResumptiodDefault(false);
-        XMPPTCPConnection.setUseStreamManagementDefault(false);
+        XMPPTCPConnection.setUseStreamManagementResumptiodDefault(true);
+        XMPPTCPConnection.setUseStreamManagementDefault(true);
         connection = new XMPPTCPConnection(config.build());
         connection.setPacketReplyTimeout(12000);
         XMPPConnectionListener connectionListener = new XMPPConnectionListener();
@@ -230,7 +237,7 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
         @Override
         public void composingNotification(String from, String packetID) {
             Log.e(TAG, "composingNotification: from" + from);
-            if (mContext != null) {
+            if (mContext != null && CURRENT_CHAT_JID.equals(buildUserJid(from))) {
                 Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_MESSAGE);
                 mContext.sendBroadcast(intent);
             }
@@ -244,12 +251,19 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
         @Override
         public void cancelledNotification(String from, String packetID) {
             Log.e(TAG, "cancelledNotification: from" + from);
-            if (mContext != null) {
+            if (mContext != null && CURRENT_CHAT_JID.equals(buildUserJid(from))) {
                 Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_PAUSE_MESSAGE);
                 mContext.sendBroadcast(intent);
             }
         }
     };
+
+    private String buildUserJid(String from) {
+        if (from.contains("/")) {
+            from = from.split("/")[0];
+        }
+        return from;
+    }
 
     private void listenDeliveryReports() {
         if (connection == null || !connection.isConnected()) {
@@ -277,9 +291,8 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
             } else {
                 connection.login();
                 Log.i(TAG, "Logged in successfully");
-                setPresence(1);
+                setPresence(PRESENCE.AVAILABLE.ordinal());
             }
-
             return true;
         } catch (SmackException.AlreadyLoggedInException e) {
             return true;
@@ -534,6 +547,18 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
                 return;
             }
 
+            DelayInformation inf = null;
+            try {
+                inf = (DelayInformation) message.getExtension("x", "jabber:x:delay");
+            } catch (Exception e) {
+                Log.i(TAG, "DelayInformation : ERROR");
+            }
+            // get offline message timestamp
+            if (inf != null) {
+                Date date = inf.getStamp();
+                Log.i(TAG, "DelayInformation : " + date.toString());
+            }
+
             if (message.getType() == Message.Type.chat
                     && message.getBody() != null) {
                 Log.e("MyXMPP_MESSAGE_LISTENER", "Xmpp message received: '"
@@ -703,7 +728,7 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
     }
 
     private void sendPresenceBroadcast(int presenceMode, long seconds, String to) {
-        Log.i(TAG, "Sending reply on presence mode:" + presenceMode);
+        Log.i(TAG, "Sending broadcast to UI for presence update:" + presenceMode);
         if (mContext == null) return;
         Intent intent = new Intent(MyService.PresenceUiBoradcast.ACTION_XMPP_PRESENCE_UI_UPDATE);
         intent.putExtra(MyService.PresenceUiBoradcast.BUNDLE_PRESENCE_MODE, presenceMode);
@@ -762,9 +787,7 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
             Log.i(TAG, "PRESENCE:" + presence.toXML());
 
             String from = presence.getFrom();
-            if (from.contains("/")) {
-                from = from.split("/")[0];
-            }
+            from = buildUserJid(from);
 
             if (from.equals(CURRENT_CHAT_JID)) {
                 sendPresenceBroadcast(retrieveStateMode(presence), -1L, from);
