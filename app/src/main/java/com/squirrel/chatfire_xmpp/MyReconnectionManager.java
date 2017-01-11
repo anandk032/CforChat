@@ -222,7 +222,6 @@ public class MyReconnectionManager {
         }
     };
 
-
     public synchronized void interruptCheckConnection() {
         XMPPConnection connection = this.weakRefConnection.get();
         if (connection == null) {
@@ -267,6 +266,10 @@ public class MyReconnectionManager {
             } else {
                 return;
             }
+        }
+
+        if (reconnectionThread != null && reconnectionThread.isAlive()) {
+            return;
         }
 
         reconnectionThread = Async.go(reconnectionRunnable,

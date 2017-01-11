@@ -32,7 +32,6 @@ import org.jivesoftware.smack.roster.RosterLoadedListener;
 import org.jivesoftware.smack.roster.packet.RosterPacket;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
-import org.jivesoftware.smackx.delay.packet.DelayInformation;
 import org.jivesoftware.smackx.iqlast.LastActivityManager;
 import org.jivesoftware.smackx.iqlast.packet.LastActivity;
 import org.jivesoftware.smackx.ping.PingFailedListener;
@@ -46,7 +45,6 @@ import org.jivesoftware.smackx.xevent.provider.MessageEventProvider;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Date;
 
 /**
  * Created by Dharmesh on 12/28/2016.
@@ -226,33 +224,35 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
     private MessageEventNotificationListener messageEventNotificationListener = new MessageEventNotificationListener() {
         @Override
         public void deliveredNotification(String from, String packetID) {
-            Log.e(TAG, "deliveredNotification: from" + from);
+            Log.e(TAG, "deliveredNotification: from" + from + " & packetID/MsgId->" + packetID);
         }
 
         @Override
         public void displayedNotification(String from, String packetID) {
-            Log.e(TAG, "displayedNotification: from" + from);
+            Log.e(TAG, "displayedNotification: from" + from + " & packetID/MsgId->" + packetID);
         }
 
         @Override
         public void composingNotification(String from, String packetID) {
-            Log.e(TAG, "composingNotification: from" + from);
-            if (mContext != null && CURRENT_CHAT_JID.equals(buildUserJid(from))) {
+            Log.e(TAG, "composingNotification: from" + from + " & packetID->" + packetID);
+            if (mContext != null) {
                 Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_MESSAGE);
+                intent.putExtra(MyService.SendMessageBroadcast.BUNDLE_MSG_TO, buildUserJid(from));
                 mContext.sendBroadcast(intent);
             }
         }
 
         @Override
         public void offlineNotification(String from, String packetID) {
-            Log.e(TAG, "offlineNotification: from" + from);
+            Log.e(TAG, "offlineNotification: from" + from + " & packetID/MsgId->" + packetID);
         }
 
         @Override
         public void cancelledNotification(String from, String packetID) {
-            Log.e(TAG, "cancelledNotification: from" + from);
-            if (mContext != null && CURRENT_CHAT_JID.equals(buildUserJid(from))) {
+            Log.e(TAG, "cancelledNotification: from" + from + " & packetID->" + packetID);
+            if (mContext != null) {
                 Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_PAUSE_MESSAGE);
+                intent.putExtra(MyService.SendMessageBroadcast.BUNDLE_MSG_TO, buildUserJid(from));
                 mContext.sendBroadcast(intent);
             }
         }
@@ -537,39 +537,39 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
             // Log.i(TAG, "processMessage FROM:" + message.getFrom() + " &TYPE:" + message.getType().toString());
             Log.i(TAG, "Received processMessage details : " + message.toXML());
 
-            if (checkReadReceipt(message)) {
-                Log.i(TAG, "Type DELIVERY REPORTS " + message.getStanzaId());
-                return;
-            }
+            //if (checkReadReceipt(message)) {
+            //    Log.i(TAG, "Type DELIVERY REPORTS " + message.getStanzaId());
+            //    return;
+            //}
 
-            if (checkDoubleTickReceipt(message)) {
-                Log.i(TAG, "Type DOUBLE TICK Received " + message.getStanzaId());
-                return;
-            }
+            //if (checkDoubleTickReceipt(message)) {
+            //    Log.i(TAG, "Type DOUBLE TICK Received " + message.getStanzaId());
+            //    return;
+            //}
 
-            DelayInformation inf = null;
-            try {
-                inf = (DelayInformation) message.getExtension("x", "jabber:x:delay");
-            } catch (Exception e) {
-                Log.i(TAG, "DelayInformation : ERROR");
-            }
+            //DelayInformation inf = null;
+            //try {
+            //   inf = (DelayInformation) message.getExtension("x", "urn:xmpp:delay");
+            //} catch (Exception e) {
+            //    Log.i(TAG, "DelayInformation : ERROR");
+            //}
             // get offline message timestamp
-            if (inf != null) {
-                Date date = inf.getStamp();
-                Log.i(TAG, "DelayInformation : " + date.toString());
-            }
+            //if (inf != null) {
+            //    Date date = inf.getStamp();
+            //    Log.i(TAG, "DelayInformation : " + date.toString());
+            //}
 
             if (message.getType() == Message.Type.chat
                     && message.getBody() != null) {
                 Log.e("MyXMPP_MESSAGE_LISTENER", "Xmpp message received: '"
                         + message.toString() + " & message.getFrom() :" + message.getFrom());
 
+                final ChatMessage chatMessage = gson.fromJson(message.getBody(), ChatMessage.class);
+                processMessage(chatMessage);
+
+                //notify end user stops typing
                 Intent intent = new Intent(MyService.UIUpdaterBoradcast.ACTION_XMPP_UI_COMPOSING_PAUSE_MESSAGE);
                 mContext.sendBroadcast(intent);
-
-                final ChatMessage chatMessage = gson.fromJson(
-                        message.getBody(), ChatMessage.class);
-                processMessage(chatMessage);
             }
         }
 
