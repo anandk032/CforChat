@@ -30,6 +30,7 @@ public class ServerPingWithAlarmManager extends Manager {
             .getName());
 
     private static final String PING_ALARM_ACTION = "org.igniterealtime.smackx.ping.ACTION";
+    private static final long INERVAL = 600000;
 
     private static final Map<XMPPConnection, ServerPingWithAlarmManager> INSTANCES = new WeakHashMap<XMPPConnection, ServerPingWithAlarmManager>();
 
@@ -131,8 +132,8 @@ public class ServerPingWithAlarmManager extends Manager {
 //                SystemClock.elapsedRealtime() + AlarmManager.INTERVAL_HALF_HOUR,
 //                AlarmManager.INTERVAL_HALF_HOUR, sPendingIntent);
         sAlarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                SystemClock.elapsedRealtime() + 0,
-                60000, sPendingIntent);
+                SystemClock.elapsedRealtime() + INERVAL,
+                INERVAL, sPendingIntent);//10 min
     }
 
     /**

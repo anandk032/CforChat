@@ -204,11 +204,9 @@ public class MyXMPP implements StanzaListener, RosterLoadedListener, PingFailedL
     public synchronized void onNetworkChange(final boolean isAvailable) {
         Log.i(TAG, "onNetworkChange ?" + isAvailable);
         if (isAvailable) {
-            MyReconnectionManager.getInstanceFor(connection).setFixedDelay(10);
-            MyReconnectionManager.getInstanceFor(connection).interruptCheckConnection();
+            MyReconnectionManager.getInstanceFor(connection).reconnect();
         } else {
-            MyReconnectionManager.getInstanceFor(connection).setFixedDelay(10);
-            MyReconnectionManager.getInstanceFor(connection).interruptCheckConnection();
+            MyReconnectionManager.getInstanceFor(connection).reconnect();
         }
     }
 
